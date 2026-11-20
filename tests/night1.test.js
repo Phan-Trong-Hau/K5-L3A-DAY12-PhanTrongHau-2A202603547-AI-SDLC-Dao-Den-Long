@@ -22,8 +22,8 @@ test('Đêm 1 có đủ năm đèn và tài nguyên', () => {
   assert.equal(game.shades.length, 0)
 })
 
-test('nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn và thắng', () => {
-  const game = createGame(1, { ...empty, motes: [[1, 0, 0], [1.01, 0, 0]] })
+test('nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn rồi thắng khi tới bình minh', () => {
+  const game = createGame(1, { ...empty, motes: [[1, 0, 0], [1.01, 0, 0]], time_left_s: 7 / 60 })
   assert.deepEqual(step(game, { jump: true }).map(event => event.name), ['mote_picked'])
   assert.ok(game.player.y > 0)
   assert.equal(game.player.carried, 1)
@@ -32,6 +32,8 @@ test('nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn và th
     const events = step(game, { interact: true })
     assert.deepEqual(events.slice(0, 2).map(event => event.name), ['deposit', 'lantern_lit'])
   }
+  assert.equal(game.state, 'playing')
+  assert.equal(step(game).at(-1).data.reason, 'dawn_survived')
   assert.equal(game.state, 'won')
   assert.equal(game.player.carried, 0)
 })
@@ -60,7 +62,7 @@ test('đèn sáng che chở Mây, hết lửa hoặc hết giờ thì thua', () 
   assert.equal(step(dawn).at(-1).data.reason, 'dawn')
 })
 
-test('CLI v1.1 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi', t => {
+test('CLI v1.2 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi', t => {
   const dir = mkdtempSync(join(tmpdir(), 'dao-den-long-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const scenario = join(dir, 'scenario.json')

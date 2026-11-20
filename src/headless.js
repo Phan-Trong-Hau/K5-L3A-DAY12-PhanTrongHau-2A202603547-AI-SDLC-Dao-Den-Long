@@ -1,6 +1,6 @@
 import { readFileSync, openSync, writeSync, closeSync } from 'node:fs'
 import { parseArgs } from 'node:util'
-import { createGame, maps, snapshot, stepGame, tuning } from './game.js'
+import { capacity, createGame, maps, snapshot, stepGame, tuning } from './game.js'
 
 const flags = ['seed', 'night', 'scenario', 'inputs', 'ticks', 'out', 'snapshot-every']
 const buttons = ['jump', 'interact', 'pulse', 'dash', 'pause']
@@ -30,7 +30,7 @@ function validateScenario(value, night) {
   return optionalFields(value, {
     player: value => optionalFields(value, {
       pos,
-      carried: value => isCount(value) && value <= tuning.carry_capacity,
+      carried: isCount, successful_lights: isCount,
       flames: isCount,
       invuln_ticks: isCount, dash_cd_ticks: isCount, pulse_cd_ticks: isCount, charm_ticks: isCount,
     }),
@@ -39,8 +39,8 @@ function validateScenario(value, night) {
     time_left_s: isNonnegative,
     motes: listOf(pos),
     shades: listOf(shade => optionalFields(shade, {
-      id: isId, state: value => ['spawning', 'wander', 'chase', 'recoil', 'stunned'].includes(value),
-      state_ticks_left: isCount,
+      id: isId, state: value => ['spawning', 'wander', 'chase', 'recoil', 'stunned', 'drain'].includes(value),
+      state_ticks_left: isCount, target_lantern_id: value => /^L[1-7]$/.test(value) && typeof value === 'string',
     }) && pos(shade.pos)),
     drifters: listOf(drifter => optionalFields(drifter, {
       id: isId, state: value => ['idle', 'chase', 'flee', 'removed'].includes(value),
@@ -53,9 +53,9 @@ function validateScenario(value, night) {
     lanterns: listOf(lantern => optionalFields(lantern, {
       pos,
       deposited: value => isCount(value) && value <= tuning.lantern_cost,
-      lit: isBoolean,
+      lit: isBoolean, ever_lit: isBoolean, fuel: value => isNonnegative(value) && value <= tuning.fuel_max,
     }) && Array.from({ length: maps[night].lanterns.length }, (_, i) => `L${i + 1}`).includes(lantern.id)),
-  }) && uniqueIds(value.lanterns) && uniqueIds(value.shades) && uniqueIds(value.drifters) && uniqueIds(value.charms)
+  }) && (value.player?.carried ?? 0) <= capacity({ successfulLights: value.player?.successful_lights ?? 0 }) && uniqueIds(value.lanterns) && uniqueIds(value.shades) && uniqueIds(value.drifters) && uniqueIds(value.charms)
 }
 
 function validateInputs(value) {

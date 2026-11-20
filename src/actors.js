@@ -1,5 +1,6 @@
 import { distanceXZ, point, spawnPoint, surfaces } from './maps.js'
 import { dt } from './movement.js'
+import { lowFuel, nearestLantern, safeLantern } from './lanterns.js'
 
 const engineTolerance = 1e-7
 const byId = (a, b) => a.id.localeCompare(b.id, 'en', { numeric: true })
@@ -17,30 +18,25 @@ function move(actor, vector, amount) {
   actor.z += vector.z * amount
 }
 
-export function availableLantern(game, target, radius = 2) {
-  return game.lanterns.filter(lantern => !lantern.lit && withinXZ(lantern, target, radius))
-    .sort((a, b) => distanceXZ(a, target) - distanceXZ(b, target) || byId(a, b))[0]
+function shadeCanOccupy(game, shade, x, z) {
+  if (game.night === 3 && shade.y >= 6 && Math.hypot(x, z) < 2) return false
+  return surfaces(game.night, x, z).some(surface => surface.y <= shade.y + 0.05)
 }
 
-function safeLantern(game, target, radius) {
-  return game.lanterns.find(lantern => lantern.lit && distanceXZ(lantern, target) < radius - engineTolerance)
-}
-
-function shadePosition(game, shade, vector, amount, safeRadius, repelling = false) {
+function shadePosition(game, shade, vector, amount, tuning) {
   const x = shade.x + vector.x * amount
   const z = shade.z + vector.z * amount
-  const floor = surfaces(game.night, x, z).filter(surface => surface.y + 0.8 <= shade.y + 0.85).at(-1)
-  if (!floor || (game.night === 3 && shade.y >= 6 && Math.hypot(x, z) < 2)) return false
-  const blockedBy = repelling ? null : safeLantern(game, { x, z }, safeRadius)
+  if (!shadeCanOccupy(game, shade, x, z)) return false
+  const blockedBy = safeLantern(game, { x, z }, tuning)
   if (blockedBy) {
-    if (safeLantern(game, shade, safeRadius)) return false
+    if (safeLantern(game, shade, tuning)) return false
     // Stop at the circumference when a movement step crosses a lit lantern's boundary.
     let low = 0
     let high = amount
     for (let i = 0; i < 14; i++) {
       const middle = (low + high) / 2
       const target = { x: shade.x + vector.x * middle, z: shade.z + vector.z * middle }
-      if (safeLantern(game, target, safeRadius)) high = middle
+      if (safeLantern(game, target, tuning)) high = middle
       else low = middle
     }
     move(shade, vector, low)
@@ -57,7 +53,7 @@ function forceShade(shade, player, ticks, travel) {
 
 function advanceForce(game, shade, force, tuning) {
   if (!force?.ticks) return
-  if (!shadePosition(game, shade, force, force.distance, tuning.safe_radius)) force.ticks = 0
+  if (!shadePosition(game, shade, force, force.distance, tuning)) force.ticks = 0
   else force.ticks--
 }
 
@@ -69,10 +65,13 @@ export function applyPulse(game, tuning, emit) {
   const stunned_ids = []
   for (const shade of game.shades) {
     if (!withinPulse(player, shade, tuning.pulse_radius)) continue
+    const draining = shade.state === 'drain'
     shade.state = 'stunned'
+    shade.lanternId = undefined
+    shade.drainTicks = 0
     shade.stateUntil = simTick + Math.round(tuning.pulse_stun_s * 60)
     forceShade(shade, player, 15, tuning.pulse_push_m)
-    game.score += tuning.score.per_stun
+    game.score += draining ? tuning.score.per_drain_stun : tuning.score.per_stun
     stunned_ids.push(shade.id)
   }
   emit('pulse', { stunned_ids })
@@ -89,45 +88,106 @@ export function applyPulse(game, tuning, emit) {
   }
 }
 
+function exitTarget(game, shade, tuning) {
+  let best
+  let distance = Infinity
+  const active = game.lanterns.filter(lantern => lantern.lit && !lowFuel(lantern, tuning))
+  for (const lantern of active) {
+    const heading = Math.atan2(shade.z - lantern.z, shade.x - lantern.x)
+    for (let index = 0; index < 120; index++) {
+      const angle = heading + Math.PI * index / 60
+      const radius = tuning.safe_radius + engineTolerance
+      const target = { x: lantern.x + Math.cos(angle) * radius, z: lantern.z + Math.sin(angle) * radius }
+      const range = distanceXZ(shade, target)
+      if (range >= distance || safeLantern(game, target, tuning) ||
+          !shadeCanOccupy(game, shade, target.x, target.z)) continue
+      let clear = true
+      for (let progress = 1; progress < 30 && clear; progress++) {
+        const ratio = progress / 30
+        clear = shadeCanOccupy(game, shade, shade.x + (target.x - shade.x) * ratio,
+          shade.z + (target.z - shade.z) * ratio)
+      }
+      if (clear) {
+        best = target
+        distance = range
+      }
+    }
+  }
+  return best
+}
+
+function repelShade(game, shade, tuning) {
+  if (!shade.exit || safeLantern(game, shade.exit, tuning)) {
+    shade.exit = exitTarget(game, shade, tuning)
+    shade.exitAt ??= game.simTick + 29
+  }
+  if (!shade.exit) return
+  const remaining = Math.max(1, shade.exitAt - game.simTick + 1)
+  shade.x += (shade.exit.x - shade.x) / remaining
+  shade.z += (shade.exit.z - shade.z) / remaining
+}
+
+function leaveDrain(shade, state) {
+  shade.state = state
+  shade.lanternId = undefined
+  shade.drainTicks = 0
+}
+
 export function moveShades(game, tuning) {
   const { player, simTick } = game
   for (const shade of game.shades) {
-    const safe = safeLantern(game, shade, tuning.safe_radius)
-    shade.repelling = Boolean(safe)
-    if (safe) {
-      const candidates = [direction(safe, shade), { x: 1, z: 0 }, { x: -1, z: 0 },
-        { x: 0, z: 1 }, { x: 0, z: -1 }]
-      const remaining = Math.max(1, 30 - (shade.repelTicks ?? 0))
-      for (const vector of candidates) {
-        const amount = (tuning.safe_radius - distanceXZ(safe, shade)) / remaining + engineTolerance
-        if (shadePosition(game, shade, vector, amount, tuning.safe_radius, true)) break
-      }
-      shade.repelTicks = (shade.repelTicks ?? 0) + 1
-    } else {
-      shade.repelTicks = 0
+    let stoppedDraining = false
+    if (shade.state === 'drain') {
+      const target = game.lanterns.find(lantern => lantern.id === shade.lanternId)
+      stoppedDraining = !target || !lowFuel(target, tuning) || !withinXZ(shade, target, 2)
+      if (stoppedDraining) leaveDrain(shade, 'wander')
+      else if (withinXZ(shade, player, 6)) leaveDrain(shade, 'chase')
+    }
+
+    shade.repelling = Boolean(safeLantern(game, shade, tuning))
+    if (shade.repelling) repelShade(game, shade, tuning)
+    else {
+      shade.exit = undefined
+      shade.exitAt = undefined
     }
 
     if (shade.state === 'stunned' || shade.state === 'recoil' || shade.state === 'spawning') {
       if (simTick < shade.stateUntil) {
-        if (!safe && shade.state !== 'spawning') advanceForce(game, shade, shade.push, tuning)
+        if (!shade.repelling && shade.state !== 'spawning') advanceForce(game, shade, shade.push, tuning)
         continue
       }
-      if (!safe && shade.state === 'recoil') advanceForce(game, shade, shade.push, tuning)
-      const endingRecoil = shade.state === 'recoil'
+      if (!shade.repelling && shade.state === 'recoil') advanceForce(game, shade, shade.push, tuning)
+      const endingInWander = shade.state !== 'spawning'
       shade.state = 'wander'
       shade.push = null
-      if (endingRecoil) continue
+      if (endingInWander) continue
     }
-    if (safe) continue
+    if (shade.repelling || stoppedDraining || shade.state === 'drain') continue
 
     if (shade.state === 'chase' && !withinXZ(shade, player, 18)) shade.state = 'wander'
-    if (shade.state !== 'chase' && withinXZ(shade, player, 12)) shade.state = 'chase'
+    else if (shade.state === 'wander' && withinXZ(shade, player, 12)) shade.state = 'chase'
+
     const speed = game.night === 3 ? tuning.shade_speed_night3 : tuning.shade_speed
     if (shade.state === 'chase') {
-      shadePosition(game, shade, direction(shade, player), Math.min(speed * dt, distanceXZ(shade, player)), tuning.safe_radius)
+      shadePosition(game, shade, direction(shade, player), Math.min(speed * dt, distanceXZ(shade, player)), tuning)
+      continue
+    }
+
+    const weak = nearestLantern(game, shade, lantern => lowFuel(lantern, tuning))
+    const target = weak ?? nearestLantern(game, shade, lantern => !lantern.lit)
+    if (target) {
+      const range = distanceXZ(shade, target)
+      if (!weak || !withinXZ(shade, target, 2)) {
+        shadePosition(game, shade, direction(shade, target), Math.min(speed * dt, range), tuning)
+      }
+      if (weak && withinXZ(shade, target, 2)) {
+        shade.state = 'drain'
+        shade.lanternId = target.id
+        shade.drainTicks = 0
+      }
     } else {
       const angle = (simTick + shade.phase) * 0.012
-      const moved = shadePosition(game, shade, { x: Math.cos(angle), z: Math.sin(angle) }, speed * dt, tuning.safe_radius)
+      const moved = shadePosition(game, shade, { x: Math.cos(angle), z: Math.sin(angle) }, speed * dt, tuning)
       if (!moved) shade.phase += 60
     }
   }
@@ -187,7 +247,7 @@ export function touched(game, tuning, emit) {
     emit('drifter_steal', { drifter_id: drifter.id, amount, carried: player.carried })
   }
 
-  if (player.immuneUntil > simTick || safeLantern(game, player, tuning.safe_radius)) return
+  if (player.immuneUntil > simTick || safeLantern(game, player, tuning)) return
   const shade = game.shades.find(candidate =>
     ['chase', 'wander'].includes(candidate.state) && !candidate.repelling &&
     withinXZ(candidate, player, tuning.shade_hit_radius) && Math.abs(candidate.y - player.y) <= 1.5)
@@ -229,7 +289,7 @@ export function fallOrRespawn(game, tuning, emit) {
 
 export function makeShade(id, position, index, fields = {}, simTick = 0) {
   const state = fields.state ?? 'wander'
-  return { id, ...position, phase: index * 97, state,
+  return { id, ...position, phase: index * 97, state, lanternId: fields.target_lantern_id, drainTicks: 0,
     stateUntil: simTick + (fields.state_ticks_left ?? (state === 'spawning' ? 1 : 0)) }
 }
 
@@ -244,7 +304,7 @@ export function spawnActors(game, tuning, emit) {
   const { simTick, map, player } = game
   const eligible = () => map.shades.filter(position => distanceXZ(position, player) >= 15 &&
     !game.shades.some(shade => withinXZ(position, shade, 1)) &&
-    !safeLantern(game, position, tuning.safe_radius))
+    !safeLantern(game, position, tuning))
   if (game.randomShades && simTick >= 300 && (simTick - 300) % map.shadeInterval === 0) {
     const count = simTick === 300 ? 2 : 1
     for (let index = 0; index < count && game.shades.length < map.shadeMax; index++) {

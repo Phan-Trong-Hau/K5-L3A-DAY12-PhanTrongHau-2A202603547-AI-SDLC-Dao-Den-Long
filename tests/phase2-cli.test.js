@@ -27,7 +27,7 @@ function run(t, { night, scenario, frames = [], ticks }) {
   }
 }
 
-test('Contract v1.1 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON', t => {
+test('Hồi quy CLI v1.2 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON', t => {
   const { snapshots, events, end } = run(t, {
     night: 2, ticks: 25, scenario: { player: { pos: [35, 0, 0] }, charms: [{ id: 'C1' }] },
     frames: [
@@ -50,7 +50,7 @@ test('Contract v1.1 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON', t =
   assert.equal(end.ticks, 25)
 })
 
-test('Contract v1.1 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse', t => {
+test('Hồi quy CLI v1.2 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse', t => {
   const { snapshots, events } = run(t, {
     night: 3, ticks: 5,
     scenario: { player: { carried: 8, invuln_ticks: 91 }, drifters: [{ id: 'D5', pos: [1, 0.8, 0] }],
@@ -64,4 +64,25 @@ test('Contract v1.1 nhận Đêm 3, Gió Lạc được gieo từ scenario và t
   assert.deepEqual(events.find(event => event.name === 'drifter_drop')?.data, { drifter_id: 'D5', amount: 3 })
   assert.equal(snapshots[2].motes.filter(mote => mote.kind === 'dropped' && mote.ttl_s === 8).length, 3)
   assert.equal(snapshots[5].wind.active, false)
+})
+
+test('Contract v1.2 ghi dầu, sức chứa, tắt/thắp lại, châm vào đèn và thắng ở bình minh', t => {
+  const { snapshots, events, end } = run(t, { night: 1, ticks: 7,
+    scenario: {
+      time_left_s: 5 / 60, player: { carried: 6, successful_lights: 2 },
+      lanterns: [{ id: 'L1', lit: true, fuel: 1 / 60, pos: [0, 0, 0] },
+        { id: 'L2', lit: true }, { id: 'L3', lit: true }],
+    },
+    frames: [{ tick: 0, interact: true }, { tick: 1, interact: false }, { tick: 2, interact: true }],
+  })
+  assert.equal(snapshots[0].player.capacity, 14)
+  assert.equal(snapshots[0].lanterns[1].fuel, 100)
+  assert.equal(snapshots[1].player.capacity, 16)
+  assert.equal(snapshots[1].lanterns[0].relit_count, 1)
+  assert.deepEqual(events.slice(1).map(event => [event.tick, event.name]), [
+    [1, 'lantern_out'], [1, 'deposit'], [1, 'lantern_lit'], [3, 'refuel'], [5, 'game_over'],
+  ])
+  assert.equal(events[3].data.relight, true)
+  assert.equal(events.at(-1).data.reason, 'dawn_survived')
+  assert.deepEqual(end, { type: 'end', ticks: 5, state: 'won', score: 667 })
 })

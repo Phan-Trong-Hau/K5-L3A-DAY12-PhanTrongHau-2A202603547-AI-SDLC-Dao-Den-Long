@@ -133,6 +133,6 @@ test('Nạp đèn chấm điểm và thắng tại tick hết giờ khi vẫn c�
     lanterns: [1, 2, 3, 4].map(i => ({ id: `L${i}`, lit: true })).concat([
       { id: 'L5', pos: [0, 0, 0], deposited: 9 },
     ]) })
-  assert.equal(step(game, { interact: true }).at(-1).data.reason, 'all_lit')
-  assert.equal(game.score, 10 + 100 + 50 * 3)
+  assert.equal(step(game, { interact: true }).at(-1).data.reason, 'dawn_survived')
+  assert.equal(game.score, 5 + 100 + 50 * 3 + 4 * 149 + 150)
 })

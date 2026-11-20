@@ -1,8 +1,9 @@
 import * as THREE from 'three'
-import { availableLantern, createGame, maps, stepGame, timeLeft, tuning } from '../../src/game.js'
+import { availableLantern, capacity, createGame, maps, stepGame, timeLeft, tuning } from '../../src/game.js'
 import { dt as stepSeconds } from '../../src/movement.js'
 import { createLandscape } from './landscape.js'
 import { createAudio } from './audio.js'
+import { fuelOf, lightCost, lowFuel, nearestLantern } from '../../src/lanterns.js'
 
 const scene = new THREE.Scene()
 scene.background = new THREE.Color('#0E1430')
@@ -50,12 +51,16 @@ ghostGeometry.computeVertexNormals()
 const shadeMaterial = new THREE.MeshLambertMaterial({ color: '#120A1A', emissive: '#30114e' })
 const stunnedMaterial = new THREE.MeshLambertMaterial({ color: '#3A3450', emissive: '#4c4c7c' })
 const ghostEyes = new THREE.MeshBasicMaterial({ color: '#7A3CFF' })
+const ghostOutline = new THREE.MeshBasicMaterial({ color: '#7A3CFF', side: THREE.BackSide })
 const ghostMouth = new THREE.MeshBasicMaterial({ color: '#1b1029' })
 const ghostFaceGeometry = new THREE.SphereGeometry(1, 12, 9)
 function makeGhost() {
   const ghost = new THREE.Group()
   const body = new THREE.Mesh(ghostGeometry, shadeMaterial)
   ghost.add(body)
+  const outline = new THREE.Mesh(ghostGeometry, ghostOutline)
+  outline.scale.setScalar(1.08)
+  ghost.add(outline)
   const arms = [-1, 1].map(side => {
     const arm = new THREE.Mesh(ghostFaceGeometry, shadeMaterial)
     arm.position.set(side * 0.58, 0.02, 0.05)
@@ -154,7 +159,7 @@ let strideMark = 0
 const hoofPosition = new THREE.Vector3()
 
 const audio = createAudio()
-const defaults = { volume: 0.55, sensitivity: 1 }
+const defaults = { volume: 0.55, sensitivity: 1, accessiblePalette: false }
 function loadSettings() {
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem('dao-den-long-settings')) }
@@ -163,7 +168,14 @@ function loadSettings() {
   }
 }
 const settings = loadSettings()
-audio.volume(settings.volume)
+function applySettings() {
+  audio.volume(settings.volume)
+  document.body.classList.toggle('accessible-palette', settings.accessiblePalette)
+  const accent = settings.accessiblePalette ? '#00B3FF' : '#7A3CFF'
+  ghostEyes.color.set(accent)
+  ghostOutline.color.set(accent)
+}
+applySettings()
 const byId = id => document.getElementById(id)
 const hud = byId('hud')
 const overlay = byId('overlay')
@@ -173,17 +185,19 @@ const buttons = byId('screen-actions')
 const settingsPanel = byId('settings')
 for (const name of Object.keys(defaults)) {
   const control = byId(name)
-  control.value = settings[name]
+  const checkbox = control.type === 'checkbox'
+  if (checkbox) control.checked = settings[name]
+  else control.value = settings[name]
   control.addEventListener('input', () => {
-    settings[name] = control.valueAsNumber
-    audio.volume(settings.volume)
+    settings[name] = checkbox ? control.checked : control.valueAsNumber
+    applySettings()
     try { localStorage.setItem('dao-den-long-settings', JSON.stringify(settings)) } catch { /* Storage can be disabled. */ }
   })
 }
 const introductions = [
-  'Ông Đăng: “Nhặt đom đóm dọc bờ và thắp năm ngọn đèn. Khi sương dày lên, ánh đèn sẽ che chở cho con.”',
-  'Ông Đăng: “Cầu tre dẫn sang bờ bên kia. Bục nhảy cũng đưa con qua biển mây. Giữ chặt đom đóm khi Gió Lạc đến.”',
-  'Ông Đăng: “Men theo hai dốc lên tầng giữa, rồi dùng bục nhảy đến tháp chuông. Khi lá tung lên, hãy chuẩn bị đón gió.”',
+  'Ông Đăng: “Giữ ít nhất ba đèn sáng tới bình minh. Châm thêm dầu trước khi Bóng Mực tìm được đèn yếu.”',
+  'Ông Đăng: “Giữ bốn đèn sáng tới bình minh. Cầu tre dẫn sang bờ bên kia. Bục nhảy cũng đưa con qua biển mây. Giữ chặt đom đóm khi Gió Lạc đến.”',
+  'Ông Đăng: “Giữ năm đèn sáng tới bình minh. Men theo dốc rồi dùng bục nhảy đến tháp chuông. Khi lá tung lên, hãy chuẩn bị đón gió.”',
 ]
 let screen = 'menu'
 let night = 1
@@ -207,6 +221,21 @@ const charmViews = new Map()
 
 const lanternWood = new THREE.CylinderGeometry(0.13, 0.22, 3, 8)
 const lanternShell = new THREE.SphereGeometry(0.57, 14, 10)
+const meterBackgroundGeometry = new THREE.PlaneGeometry(1.26, 0.18)
+const meterFillGeometry = new THREE.PlaneGeometry(1.17, 0.105)
+const meterBackground = new THREE.MeshBasicMaterial({ color: '#121725' })
+const fuelFullMaterial = new THREE.MeshBasicMaterial({ color: '#F2C14E' })
+const fuelLowMaterial = new THREE.MeshBasicMaterial({ color: '#FFB347' })
+const tornPaper = new THREE.Shape()
+tornPaper.moveTo(-0.11, 0.15)
+tornPaper.lineTo(0.12, 0.04)
+tornPaper.lineTo(0.03, -0.03)
+tornPaper.lineTo(0.15, -0.15)
+tornPaper.lineTo(-0.06, -0.07)
+tornPaper.closePath()
+const tearGeometry = new THREE.ShapeGeometry(tornPaper)
+const tearMaterial = new THREE.MeshBasicMaterial({ color: '#131725', side: THREE.DoubleSide })
+const towardCamera = new THREE.Vector3()
 const lanternCoreGeometry = new THREE.SphereGeometry(0.26, 10, 8)
 const moteGeometry = new THREE.SphereGeometry(0.105, 8, 6)
 const moteHaloGeometry = new THREE.SphereGeometry(0.2, 8, 6)
@@ -231,7 +260,16 @@ function makeLantern(lantern) {
   core.visible = false
   const light = new THREE.PointLight('#FFB347', 0, 14)
   light.position.set(x, y + 3, z)
-  return { post, bulb, core, light, lit: false }
+  bulb.scale.y = 0.8
+  const meter = new THREE.Group()
+  const fill = new THREE.Mesh(meterFillGeometry, fuelFullMaterial)
+  fill.position.z = 0.004
+  meter.add(new THREE.Mesh(meterBackgroundGeometry, meterBackground), fill)
+  meter.position.set(x, y + 3.85, z)
+  meter.visible = false
+  const tear = new THREE.Mesh(tearGeometry, tearMaterial)
+  sceneryActors.add(meter, tear)
+  return { post, bulb, core, light, meter, fill, tear, lit: false }
 }
 
 function clearViews(views, dispose = () => {}) {
@@ -247,11 +285,9 @@ function loadNight(nextNight) {
     landscape = createLandscape(scene, night)
     landscapeNight = night
   }
-  clearViews(lanternViews, ({ post, bulb, core, light }) => {
-    for (const view of [post, bulb, core, light]) {
-      view.removeFromParent()
-      view.material?.dispose()
-    }
+  clearViews(lanternViews, ({ post, bulb, core, light, meter, tear }) => {
+    for (const view of [post, bulb, core, light, meter, tear]) view.removeFromParent()
+    for (const view of [post, bulb, core]) view.material.dispose()
   })
   for (const lantern of game.lanterns) lanternViews.set(lantern.id, makeLantern(lantern))
   clearViews(moteViews, view => view.removeFromParent())
@@ -290,7 +326,7 @@ function show(next, heading, text, actions = []) {
 }
 function menu() {
   show('menu', 'Đảo Đèn Lồng',
-    'Gom đom đóm, thắp đèn và giữ ngọn lửa qua ba đêm.\nWASD hoặc chuột phải để đi · Space để nhảy · Shift để lướt · E để nạp đèn · Q hoặc chuột trái để tỏa sáng · Esc/P để dừng.',
+    'Giữ đủ đèn sáng đến bình minh. Dùng đom đóm để thắp đèn hoặc châm dầu.\nWASD hoặc chuột phải để đi · Space để nhảy · Shift để lướt · E để nạp đèn · Q hoặc chuột trái để tỏa sáng · Esc/P để dừng.',
     [['Bắt đầu', () => { total = 0; introduce(1) }], ['Cài đặt', () => openSettings(menu)]])
 }
 function play() {
@@ -557,23 +593,41 @@ function updateActors(time) {
 
   for (const lantern of game.lanterns) {
     const view = lanternViews.get(lantern.id)
-    if (view.lit === lantern.lit) continue
-    view.lit = lantern.lit
-    view.bulb.material.color.set(lantern.lit ? '#FFB347' : '#5B5F6E')
-    view.bulb.material.emissive.set(lantern.lit ? '#FFB347' : '#000000')
-    view.bulb.material.emissiveIntensity = 0.62
-    view.bulb.material.transparent = lantern.lit
-    view.bulb.material.opacity = lantern.lit ? 0.75 : 1
-    view.core.visible = lantern.lit
-    view.light.intensity = lantern.lit ? 64 : 0
-    if (lantern.lit) sceneryActors.add(view.light)
-    else view.light.removeFromParent()
+    const low = lowFuel(lantern, tuning)
+    const intensity = low ? 0.66 + 0.34 * Math.cos(game.simTick / 60 * 2 * Math.PI) : 1
+    if (view.lit !== lantern.lit) {
+      view.lit = lantern.lit
+      view.bulb.scale.y = lantern.lit ? 1 : 0.8
+      view.bulb.material.color.set(lantern.lit ? '#FFB347' : '#5B5F6E')
+      view.bulb.material.emissive.set(lantern.lit ? '#FFB347' : '#000000')
+      view.core.visible = lantern.lit
+      if (lantern.lit) sceneryActors.add(view.light)
+      else view.light.removeFromParent()
+    }
+    view.bulb.material.emissiveIntensity = 0.62 * intensity
+    view.core.material.emissiveIntensity = intensity
+    view.light.intensity = lantern.lit ? 64 * intensity : 0
+    view.meter.visible = lantern.lit && intensity >= 0.49
+    view.tear.visible = !lantern.lit
+    if (lantern.lit) {
+      const ratio = fuelOf(lantern) / tuning.fuel_max
+      view.meter.quaternion.copy(camera.quaternion)
+      view.fill.scale.x = ratio
+      view.fill.position.x = (ratio - 1) * 1.17 / 2
+      view.fill.material = low ? fuelLowMaterial : fuelFullMaterial
+    } else {
+      towardCamera.subVectors(camera.position, view.bulb.position).normalize()
+      view.tear.position.copy(view.bulb.position).addScaledVector(towardCamera, 0.57)
+      view.tear.quaternion.copy(camera.quaternion)
+    }
   }
 }
 
 const motesHud = byId('motes')
-const moteSlots = Array.from({ length: tuning.carry_capacity }, () => document.createElement('span'))
-motesHud.replaceChildren(...moteSlots)
+const moteSlots = Array.from({ length: tuning.capacity_max }, () => document.createElement('span'))
+const moteCount = document.createElement('strong')
+moteCount.id = 'mote-count'
+motesHud.replaceChildren(...moteSlots, moteCount)
 const arrow = byId('arrow')
 const arrowTarget = new THREE.Vector3()
 const headingVector = new THREE.Vector3()
@@ -591,17 +645,25 @@ function updateHud() {
   hudText('flames', '🔥'.repeat(flames) + '○'.repeat(Math.max(0, tuning.flames - flames)))
   hudText('timer', `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`)
   byId('timer').classList.toggle('danger', seconds <= 30)
-  hudText('score', `Đèn ${count}/${game.lanterns.length} · ${game.score} điểm`)
-  moteSlots.forEach((slot, index) => slot.classList.toggle('full', index < carried))
-  motesHud.setAttribute('aria-label', `Đom đóm ${carried}/${tuning.carry_capacity}`)
+  const needed = Math.ceil(game.lanterns.length * tuning.win_ratio)
+  hudText('score', `Đèn ${count}/${game.lanterns.length} · Cần ${needed} · ${game.score} điểm`)
+  const max = capacity(game.player)
+  moteSlots.forEach((slot, index) => {
+    slot.hidden = index >= max
+    slot.classList.toggle('full', index < carried)
+  })
+  moteCount.textContent = `${carried}/${max}`
+  motesHud.setAttribute('aria-label', `Đom đóm ${carried}/${max}`)
   const cooldown = until => until > game.simTick ? `${((until - game.simTick) / 60).toFixed(1)}s` : 'sẵn sàng'
   const dash = charmUntil > game.simTick ? 'Bùa Gió' : cooldown(dashReady)
   hudText('cooldowns', `↠ Shift ${dash} · ✦ Q ${cooldown(pulseReady)}`)
   const nearby = availableLantern(game, game.player)
-  hudText('hint', nearby ? `E — Nạp ánh sáng (${nearby.deposited}/${tuning.lantern_cost})`
-    : game.wind.warning ? 'Gió mạnh sắp đến' : '')
+  const nearbyText = nearby?.lit
+    ? `E — Châm dầu (${Math.floor(fuelOf(nearby))}/${tuning.fuel_max})`
+    : nearby ? `E — Nạp ánh sáng (${nearby.deposited}/${lightCost(nearby, tuning)})` : ''
+  hudText('hint', nearbyText || (game.wind.warning ? '⚠ Gió mạnh sắp đến' : ''))
 
-  const target = availableLantern(game, game.player, Infinity)
+  const target = nearestLantern(game, game.player, lantern => !lantern.lit)
   if (!target) {
     arrow.hidden = true
     return

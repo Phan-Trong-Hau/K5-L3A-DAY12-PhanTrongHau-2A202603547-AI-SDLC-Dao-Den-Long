@@ -1,0 +1,11 @@
+{
+  "player": { "pos": [20, 0, 0] },
+  "random_motes": false,
+  "random_shades": false,
+  "random_drifters": false,
+  "lanterns": [{ "id": "L1", "pos": [0, 0, 0], "lit": true, "fuel": 25 }],
+  "shades": [
+    { "pos": [1, 0.8, 0], "state": "drain", "target_lantern_id": "L1" },
+    { "pos": [0, 0.8, 1], "state": "drain", "target_lantern_id": "L1" }
+  ]
+}

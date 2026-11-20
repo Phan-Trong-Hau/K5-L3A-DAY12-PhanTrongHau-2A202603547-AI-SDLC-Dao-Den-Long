@@ -14,27 +14,27 @@ npm ci
 npm run dev
 ```
 
-Mở địa chỉ Vite in trong terminal. Bấm **Bắt đầu** để chơi lần lượt Đảo Bến, Đảo Cau và Đảo Chuông. Nhặt đom đóm và thắp hết đèn trước khi hết giờ hoặc hết lửa.
+Mở địa chỉ Vite in trong terminal. Bấm **Bắt đầu** để chơi lần lượt Đảo Bến, Đảo Cau và Đảo Chuông. Nhặt đom đóm, thắp đèn và giữ đủ đèn sáng tới bình minh. Cần 3/5 đèn ở Đảo Bến, 4/6 ở Đảo Cau và 5/7 ở Đảo Chuông.
 
 - **WASD / phím mũi tên hoặc chuột phải** để đi, **Space** để nhảy và **Shift** để lướt.
-- **E** để nạp đèn. **Q hoặc nhấp chuột trái** để tỏa sáng, tốn ba đom đóm. **Kéo chuột trái** để xoay camera, cuộn chuột để zoom.
-- **Esc/P** để tạm dừng. Menu có Cài đặt, Chơi lại Đêm và Về menu.
-- Nạp mỗi đom đóm được 10 điểm, thắp đèn được 100 điểm và làm choáng Bóng Mực bằng Tỏa Sáng được 5 điểm/con. Khi thắng, cộng 2 điểm mỗi giây nguyên còn lại và 50 điểm mỗi lửa còn lại. Tổng điểm Bình Minh tính các đêm đã thắng.
+- **E** để nạp đèn tắt hoặc châm dầu cho đèn đang sáng. **Q hoặc nhấp chuột trái** để tỏa sáng, tốn ba đom đóm. **Kéo chuột trái** để xoay camera, cuộn chuột để zoom.
+- **Esc/P** để tạm dừng. Menu có Cài đặt, Chơi lại Đêm và Về menu. Bật **Bảng màu dễ phân biệt** trong Cài đặt để đổi viền và mắt Bóng Mực sang xanh dương, cảnh báo sang trắng kèm biểu tượng ⚠.
+- Nạp mỗi đom đóm được 5 điểm. Thắp lần đầu được 100 điểm, thắp lại được 40 điểm. Làm choáng Bóng Mực được 5 điểm, hoặc 15 điểm nếu nó đang hút dầu. Khi thắng, mỗi đèn còn sáng cộng 50 điểm cộng phần nguyên của dầu còn lại, mỗi lửa còn lại cộng 50 điểm.
 
-### Headless v1.1
+### Headless v1.2
 
 [game.contract.json](game.contract.json) công bố lệnh và tuning cho ba đêm. Để chạy kiểm tra và tạo JSONL:
 
 ```bash
 npm test
-node src/headless.js --seed 7 --night 3 --ticks 21600 --out /tmp/dao-den-long.jsonl
+node src/headless.js --seed 7 --night 3 --ticks 18000 --out /tmp/dao-den-long.jsonl
 ```
 
-Nhận `--night 1|2|3`, `--scenario <file.json>`, `--inputs <file.json>` và `--snapshot-every <int>`. Xem [tiêu chí nghiệm thu](docs/notes/phase-2.md) và [bằng chứng Phase 2](docs/proof/phase-2/README.md).
+Nhận `--night 1|2|3`, `--scenario <file.json>`, `--inputs <file.json>` và `--snapshot-every <int>`. Xem [quyết định thiết kế](docs/notes/phase-3.md), [bằng chứng Phase 3](docs/proof/phase-3/README.md) và [changelog](CHANGELOG.md).
 
 ### Sáng tạo của tôi
 
-Mây là chú heo đen hồng đội nón lá, mặc áo màu ngà và mang đèn lồng nhỏ. Đảo Bến có dấu chân, rừng, suối, chim, rắn và ếch ở lớp cảnh quan. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 2.
+Mây là chú heo đen hồng đội nón lá, mặc áo màu ngà và mang đèn lồng nhỏ. Đảo Bến có dấu chân, rừng, suối, chim, rắn và ếch ở lớp cảnh quan. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 3.
 
 ## Tài liệu của lab
 
@@ -52,7 +52,7 @@ Yêu cầu dự án được phát hành tại **[Đảo Đèn Lồng Lab](https
 
 ## Dự án
 
-**Đảo Đèn Lồng**: game 3D góc nhìn thứ ba. Mây, người giữ đèn nhỏ tuổi, gom đom đóm để thắp lại các Đèn Lồng Lớn và né Bóng Mực trong sương đen.
+**Đảo Đèn Lồng**: game 3D góc nhìn thứ ba. Mây, người giữ đèn nhỏ tuổi, gom đom đóm để thắp và châm dầu cho các Đèn Lồng Lớn, đồng thời né Bóng Mực trong sương đen.
 
 - Không ràng buộc công nghệ; chạy được trên macOS hoặc Linux.
 - Tuân theo **Test Contract** (chế độ headless) để được chấm tự động và so sánh với nhau.

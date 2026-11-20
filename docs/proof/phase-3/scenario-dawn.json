@@ -1,0 +1,12 @@
+{
+  "time_left_s": 0.08333333333333333,
+  "player": { "carried": 6, "successful_lights": 2 },
+  "random_motes": false,
+  "random_shades": false,
+  "random_drifters": false,
+  "lanterns": [
+    { "id": "L1", "pos": [0, 0, 0], "lit": true, "fuel": 0.016666666666666666 },
+    { "id": "L2", "lit": true },
+    { "id": "L3", "lit": true }
+  ]
+}

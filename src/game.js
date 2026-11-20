@@ -1,11 +1,16 @@
 import contract from '../game.contract.json' with { type: 'json' }
 import { maps, distanceXZ, point, spawnPoint, surfaces } from './maps.js'
 import { movePlayer } from './movement.js'
-import { applyPulse, availableLantern, fallOrRespawn, makeDrifter, makeShade, moveDrifters,
+import { applyPulse, fallOrRespawn, makeDrifter, makeShade, moveDrifters,
   moveShades, spawnActors, touched, withinXZ } from './actors.js'
 
+import { availableLantern as chooseLantern, burnFuel, capacityOf, fuelOf, interactLantern, makeLantern,
+  roundedFuel } from './lanterns.js'
+
 export const tuning = contract.tuning
-export { maps, availableLantern }
+export { maps }
+export const availableLantern = (game, target, radius) => chooseLantern(game, target, tuning, radius)
+export const capacity = player => capacityOf(player, tuning)
 const rounded = value => Number(value.toFixed(3))
 const coords = ({ x, y, z }) => [x, y, z].map(rounded)
 const samePoint = (a, b) => distanceXZ(a, b) < 0.000001 && Math.abs(a.y - b.y) < 0.000001
@@ -71,6 +76,7 @@ export function createGame(seed, scenario = {}, night = 1) {
       grounded: surfaces(night, start.x, start.z).some(surface => Math.abs(surface.y - start.y) < 0.000001),
       carried: player.carried ?? 0,
       flames: player.flames ?? tuning.flames,
+      successfulLights: player.successful_lights ?? 0,
       immuneUntil: player.invuln_ticks ?? 0, pulseReady: player.pulse_cd_ticks ?? 0,
       dashReady: player.dash_cd_ticks ?? 0, dashUntil: 0, charmUntil: player.charm_ticks ?? 0,
       respawnAt: 0,
@@ -78,9 +84,7 @@ export function createGame(seed, scenario = {}, night = 1) {
     lanterns: map.lanterns.map((layout, index) => {
       const id = `L${index + 1}`
       const override = scenario.lanterns?.find(lantern => lantern.id === id) ?? {}
-      const deposited = override.deposited ?? (override.lit ? tuning.lantern_cost : 0)
-      return { id, ...point(override.pos ?? layout),
-        deposited, lit: override.lit ?? (deposited >= tuning.lantern_cost) }
+      return makeLantern(id, layout, override, tuning)
     }),
     motes: initialMotes.map(position => ({ id: nextId('M'), ...position, kind: 'random', until: null, ready: 0 })),
     shades: (scenario.shades ?? []).map((shade, index) =>
@@ -121,7 +125,7 @@ function pickUp(game, emit) {
   const reachable = target => withinXZ(player, target, tuning.pickup_radius) &&
     Math.abs(player.y - target.y) <= 1.5 + 1e-7
   game.motes = game.motes.filter(mote => {
-    if (player.carried >= tuning.carry_capacity || simTick < mote.ready || !reachable(mote)) return true
+    if (player.carried >= capacity(player) || simTick < mote.ready || !reachable(mote)) return true
     player.carried++
     emit('mote_picked', { carried: player.carried })
     return false
@@ -132,25 +136,6 @@ function pickUp(game, emit) {
     charm.ready = simTick + 2700
     player.charmUntil = simTick + 600
     emit('charm_picked', { charm_id: charm.id, charm_ticks: 600 })
-  }
-}
-
-function deposit(game, emit) {
-  const { player } = game
-  if (!player.carried) return
-  const lantern = availableLantern(game, player, tuning.interact_radius)
-  if (!lantern) return
-  const amount = Math.min(player.carried, tuning.lantern_cost - lantern.deposited)
-  if (amount > 0) {
-    player.carried -= amount
-    lantern.deposited += amount
-    game.score += amount * tuning.score.per_deposit
-    emit('deposit', { lantern_id: lantern.id, amount, deposited: lantern.deposited })
-  }
-  if (lantern.deposited >= tuning.lantern_cost) {
-    lantern.lit = true
-    game.score += tuning.score.per_lantern
-    emit('lantern_lit', { lantern_id: lantern.id })
   }
 }
 
@@ -172,12 +157,13 @@ export function stepGame(game, input) {
   for (const charm of game.charms) {
     if (charm.ready <= simTick) charm.available = true
   }
+  burnFuel(game, tuning, emit)
   updateWind(game)
   if (!player.respawnAt) movePlayer(game, input, tuning, emit)
   const falling = fallOrRespawn(game, tuning, emit)
   if (!falling) {
     pickUp(game, emit)
-    if (input.interact) deposit(game, emit)
+    if (input.interact) interactLantern(game, tuning, emit)
     if (input.pulse) applyPulse(game, tuning, emit)
   }
   moveShades(game, tuning)
@@ -195,12 +181,16 @@ export function stepGame(game, input) {
 
   let reason
   if (player.flames <= 0) reason = 'no_flames'
-  else if (game.lanterns.every(lantern => lantern.lit)) reason = 'all_lit'
-  else if (timeLeft(game) <= 0) reason = 'dawn'
+  else if (timeLeft(game) <= 0) {
+    const lit = game.lanterns.filter(lantern => lantern.lit)
+    const won = lit.length >= Math.ceil(tuning.win_ratio * game.lanterns.length)
+    reason = won ? 'dawn_survived' : 'dawn'
+    if (won) game.score += player.flames * tuning.score.per_flame_left +
+      lit.reduce((sum, lantern) => sum + tuning.score.per_dawn_lantern +
+        Math.floor(fuelOf(lantern)) * tuning.score.per_dawn_fuel, 0)
+  }
   if (reason) {
-    game.state = reason === 'all_lit' ? 'won' : 'lost'
-    if (game.state === 'won') game.score += Math.floor(timeLeft(game)) * tuning.score.per_second_left +
-      player.flames * tuning.score.per_flame_left
+    game.state = reason === 'dawn_survived' ? 'won' : 'lost'
     emit('game_over', { result: game.state, reason })
   }
   return events
@@ -214,12 +204,13 @@ export function snapshot(game) {
     time_left_s: timeLeft(game), score: game.score, night: game.night,
     wind: { active: wind.active, dir_deg: wind.dir_deg },
     player: {
-      pos: coords(player), flames: player.flames, carried: player.carried,
+      pos: coords(player), flames: player.flames, carried: player.carried, capacity: capacity(player),
       vel: [player.vx, player.vy, player.vz].map(rounded), grounded: player.grounded,
       invuln: player.immuneUntil > game.simTick, dash_cd_s: player.charmUntil > game.simTick ? 0 : remaining(player.dashReady),
       pulse_cd_s: remaining(player.pulseReady), charm_s: remaining(player.charmUntil),
     },
-    lanterns: game.lanterns.map(lantern => ({ id: lantern.id, pos: coords(lantern), lit: lantern.lit, deposited: lantern.deposited })),
+    lanterns: game.lanterns.map(lantern => ({ id: lantern.id, pos: coords(lantern), lit: lantern.lit, deposited: lantern.deposited,
+      fuel: roundedFuel(lantern), ever_lit: lantern.everLit, relit_count: lantern.relitCount })),
     shades: game.shades.map(shade => ({ id: shade.id, pos: coords(shade), state: shade.state })),
     motes_active: game.motes.length,
     motes: game.motes.map(mote => ({ id: mote.id, pos: coords(mote), kind: mote.kind,

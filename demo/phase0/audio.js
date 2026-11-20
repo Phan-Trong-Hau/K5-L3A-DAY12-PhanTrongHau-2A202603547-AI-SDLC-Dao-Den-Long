@@ -1,5 +1,6 @@
 const motifs = {
   mote_picked: [660, 880], lantern_lit: [392, 523, 659, 784],
+  refuel: [523, 659], lantern_out: [180, 131],
   pulse: [660, 483, 260], player_hit: [180, 105], jump: [310, 460],
   dash: [450, 730], won: [392, 523, 659, 784, 1047], lost: [330, 262, 175],
   shade_spawned: [143, 209], countdown: [660], charm_picked: [523, 659, 932],
