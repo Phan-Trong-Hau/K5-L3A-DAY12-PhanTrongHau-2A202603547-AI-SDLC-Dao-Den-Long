@@ -14,3 +14,7 @@
 | Video | Bấm chơi trực tiếp, đi, nhảy, lướt, tạm dừng. Phần sau hiển thị đầu ra lệnh test, headless, benchmark và soak đã chạy. Video gắn vào Release v1.0.0. |
 
 Máy kiểm tra chạy Linux x86_64, Intel Core i5-11300H, Intel Iris Xe với Mesa, Node v22.14.0. Benchmark dùng Chrome/Chromium với cờ bỏ giới hạn tần số, đọc framebuffer từng khung để tính dựng hình đã hoàn thành. Benchmark tắt động vật, hiệu ứng xì hơi và chi tiết lạ của nhân vật. Số đo web chỉ xác nhận trên máy này. Bộ test ẩn và máy chấm chưa được chạy.
+
+## Hiệu ứng Tỏa Sáng sau bản phát hành
+
+Chromium 1280×720, fixture cấp 3 đom đóm và đặt một Bóng Mực trong tầm. Bấm Q, hai chân trước nhấc lên rồi xuất hiện dấu móng và vòng sáng lan ra. Từ khung đầu của động tác, túi đã trừ 3 và Bóng Mực đã choáng. `npm test` đạt 25/25. JSONL fixture bình minh khớp dữ liệu Phase 3.

@@ -57,7 +57,7 @@ Cấu hình `DAO_LEADERBOARD_FILE` để dùng file lưu riêng. Trong Cài đ�
 
 ### Sáng tạo của tôi
 
-Mây là chú heo thân đen, mõm, móng và đuôi hồng, đội nón lá và mang đèn lồng nhỏ. Mỗi lần lướt thành công, Mây xì hơi và để lại một cụm khói hoạt hình. Đom đóm có cánh vỗ, bụng sáng và quầng sáng nhấp nháy. Cả ba đêm có rừng, suối, đá, chim, rắn và ếch. Hai bờ Đảo Cau còn có rùa. Mây, rắn, ếch và rùa chìm dần đến ngang thân khi lội qua suối. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 3.
+Mây là chú heo thân đen, mõm, móng và đuôi hồng, đội nón lá và mang đèn lồng nhỏ. Mỗi lần lướt thành công, Mây xì hơi và để lại một cụm khói hoạt hình. Khi Tỏa Sáng, Mây nhấc hai chân trước rồi dậm xuống. Hai dấu móng hồng lóe lên và vòng sáng vàng lan ra. Đom đóm có cánh vỗ, bụng sáng và quầng sáng nhấp nháy. Cả ba đêm có rừng, suối, đá, chim, rắn và ếch. Hai bờ Đảo Cau còn có rùa. Mây, rắn, ếch và rùa chìm dần đến ngang thân khi lội qua suối. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 3.
 
 ## Tài liệu của lab
 

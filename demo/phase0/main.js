@@ -123,7 +123,7 @@ for (const side of [-1, 1]) {
     player.add(joint)
     pigPart(charcoal, 0, -0.25, 0, 0.15, 0.25, 0.15, joint)
     pigPart(pink, 0, -0.375, 0, 0.15, 0.10, 0.15, joint)
-    legs.push({ joint, phase: (side < 0) === (z < 0) ? 0 : Math.PI })
+    legs.push({ joint, front: z < 0, phase: (side < 0) === (z < 0) ? 0 : Math.PI })
   }
 }
 mesh(player, new THREE.ConeGeometry(0.54, 0.28, 18), '#e3ba71', 0, 1.35, -0.44)
@@ -137,7 +137,25 @@ const pulseView = new THREE.Mesh(
 pulseView.rotation.x = -Math.PI / 2
 pulseView.visible = false
 scene.add(pulseView)
-let pulseAt = -Infinity
+const stompImpact = 6
+const pulseLife = 26
+const hoofGlowGeometry = new THREE.CircleGeometry(1, 16)
+const hoofGlowMaterial = new THREE.MeshBasicMaterial({
+  color: '#ff9fcb', transparent: true, depthWrite: false, side: THREE.DoubleSide,
+})
+const stompMarks = new THREE.Group()
+stompMarks.visible = false
+for (const foot of [-1, 1]) {
+  for (const toe of [-1, 1]) {
+    const print = new THREE.Mesh(hoofGlowGeometry, hoofGlowMaterial)
+    print.rotation.x = -Math.PI / 2
+    print.position.set(foot * 0.31 + toe * 0.067, 0, -0.36)
+    print.scale.set(0.062, 0.14, 1)
+    stompMarks.add(print)
+  }
+}
+scene.add(stompMarks)
+let stompAt = -Infinity
 let yaw = 0
 let zoom = 1
 let pointerStart = null
@@ -377,7 +395,8 @@ function loadNight(nextNight) {
   lastCountdown = 11
   cameraHeight = game.player.y
   playerImmersion = 0
-  pulseAt = -Infinity
+  stompAt = -Infinity
+  pulseView.visible = stompMarks.visible = false
   dashPuffs.clear()
   stride = strideMark = printIndex = 0
   for (const print of prints) print.visible = false
@@ -604,7 +623,7 @@ function clearPointerTarget() {
   destinationView.visible = false
 }
 
-function handleEvents(events, time = performance.now()) {
+function handleEvents(events) {
   for (const sound of game.sounds) audio.play(sound)
   for (const { name, data } of events) {
     if (name === 'game_over') finish(data.result)
@@ -612,8 +631,11 @@ function handleEvents(events, time = performance.now()) {
     if (name === 'shade_spawned') spawnNotice = { id: data.id, until: game.simTick + 180 }
     if (name === 'dash') dashPuffs.emit(game.player, game.simTick)
     if (name === 'pulse') {
-      pulseAt = time
-      pulseView.position.set(game.player.x, game.player.y + 0.10, game.player.z)
+      stompAt = game.simTick
+      const { x, y, z, facingX, facingZ } = game.player
+      pulseView.position.set(x, y + 0.10, z)
+      stompMarks.position.set(x, y + 0.105, z)
+      stompMarks.rotation.y = Math.atan2(-facingX, -facingZ)
     }
   }
   const seconds = Math.ceil(timeLeft(game))
@@ -623,7 +645,7 @@ function handleEvents(events, time = performance.now()) {
   }
 }
 
-function advance(time, elapsed, cosine, sine) {
+function advance(elapsed, cosine, sine) {
   accumulatedTime += Math.min(elapsed, 0.1)
   const localX = Number(isHeld('right')) - Number(isHeld('left'))
   const localZ = Number(isHeld('down')) - Number(isHeld('up'))
@@ -645,7 +667,7 @@ function advance(time, elapsed, cosine, sine) {
     handleEvents(stepGame(game, {
       x, z, jump: actions.delete('jump'), interact: actions.delete('interact'),
       pulse: actions.delete('pulse'), dash: actions.delete('dash'),
-    }), time)
+    }))
     accumulatedTime -= stepSeconds
   }
   audio.ambient()
@@ -660,14 +682,25 @@ function updatePlayer(time, elapsed, previousX, previousZ) {
   if (position.immuneUntil > game.simTick && Math.floor(time / 95) % 3 === 0) player.visible = false
   const walk = Math.hypot(position.x - previousX, position.z - previousZ)
   player.rotation.y = Math.atan2(-position.facingX, -position.facingZ)
+  const stompAge = game.simTick - stompAt
+  const lift = stompAge < stompImpact
+    ? Math.sin(Math.PI * stompAge / stompImpact) : 0
+  const recoil = stompAge >= stompImpact && stompAge < stompImpact + 7
+    ? Math.sin(Math.PI * (stompAge - stompImpact) / 7) : 0
+  const motion = settings.reducedMotion ? 0.42 : 1
+  player.rotation.x = (0.29 * lift - 0.095 * recoil) * motion
   const onGround = walk > 0.001 && position.grounded
   if (onGround) stride += walk * 4.9
-  for (const { joint, phase } of legs) {
+  for (const { joint, phase, front } of legs) {
     const swing = onGround ? Math.sin(stride + phase) * 0.54 : position.grounded ? 0 : -0.14
-    joint.rotation.x = THREE.MathUtils.lerp(joint.rotation.x, swing, 0.58)
+    if (stompAge < stompImpact + 7) {
+      joint.rotation.x = front ? (0.66 * lift - 0.20 * recoil) * motion : 0
+    } else {
+      joint.rotation.x = THREE.MathUtils.lerp(joint.rotation.x, swing, 0.58)
+    }
   }
   const mark = Math.floor(stride / Math.PI)
-  if (onGround && playerImmersion < 0.14 && mark > strideMark) {
+  if (onGround && stompAge >= stompImpact + 7 && playerImmersion < 0.14 && mark > strideMark) {
     for (const { joint, phase } of legs) {
       if (phase !== (mark % 2 ? 0 : Math.PI)) continue
       joint.getWorldPosition(hoofPosition)
@@ -686,11 +719,15 @@ function updatePlayer(time, elapsed, previousX, previousZ) {
     print.material.opacity = Math.max(0, fade) * 0.52
   }
 
-  const progress = (time - pulseAt) / 420
-  pulseView.visible = progress < 1
+  const progress = (stompAge - stompImpact) / pulseLife
+  pulseView.visible = progress >= 0 && progress < 1
+  stompMarks.visible = pulseView.visible && progress < 0.65
   if (pulseView.visible) {
-    pulseView.scale.setScalar(Math.max(0.1, progress * tuning.pulse_radius))
-    pulseView.material.opacity = (settings.reducedMotion ? 0.4 : 1) * (1 - progress)
+    pulseView.scale.setScalar(Math.max(0.27, progress * tuning.pulse_radius))
+    pulseView.material.opacity = (settings.reducedMotion ? 0.4 : 0.95) * (1 - progress)
+  }
+  if (stompMarks.visible) {
+    hoofGlowMaterial.opacity = (settings.reducedMotion ? 0.45 : 0.88) * (1 - progress / 0.65)
   }
 }
 
@@ -930,7 +967,7 @@ function frame(time) {
   const before = game.player
   const oldX = before.x
   const oldZ = before.z
-  if (screen === 'play') advance(time, elapsed, cosine, sine)
+  if (screen === 'play') advance(elapsed, cosine, sine)
   const position = game.player
   updatePlayer(time, elapsed, oldX, oldZ)
   const height = Math.max(-3, position.y)
