@@ -13,10 +13,21 @@
         <div id="timer" class="hud-panel">05:00</div>
         <div id="score" class="hud-panel"></div>
       </div>
+      <div id="announcements" aria-live="polite"></div>
+      <div id="shade-arrow" hidden aria-hidden="true">▲</div>
       <div id="arrow" hidden aria-label="Hướng tới đèn chưa sáng">▲</div>
       <p id="hint" aria-live="polite"></p>
       <div id="motes" class="hud-panel" aria-label="Đom đóm"></div>
-      <div id="cooldowns" class="hud-panel"></div>
+      <div id="cooldowns" class="hud-panel">
+        <div class="ability">
+          <div class="ability-label"><span><kbd id="dash-key">Shift</kbd> Xì hơi</span><strong id="dash-status"></strong></div>
+          <progress id="dash-meter" max="1" value="1" aria-label="Tiến độ hồi chiêu Xì hơi" aria-describedby="dash-status"></progress>
+        </div>
+        <div class="ability">
+          <div class="ability-label"><span><kbd id="pulse-key">Q</kbd> Tỏa Sáng</span><strong id="pulse-status"></strong></div>
+          <progress id="pulse-meter" max="1" value="0" aria-label="Tiến độ hồi chiêu hoặc tích đom đóm cho Tỏa Sáng" aria-describedby="pulse-status"></progress>
+        </div>
+      </div>
     </div>
     <div id="overlay">
       <section class="card" aria-labelledby="screen-title">
@@ -26,7 +37,13 @@
           <label>Âm lượng <input id="volume" type="range" min="0" max="1" step="0.05"></label>
           <label>Độ nhạy chuột <input id="sensitivity" type="range" min="0.3" max="2" step="0.05"></label>
           <label>Bảng màu dễ phân biệt <input id="accessiblePalette" type="checkbox"></label>
+          <label>Giảm chuyển động <input id="reducedMotion" type="checkbox"></label>
+          <label>Chữ lớn (×1,25) <input id="largeText" type="checkbox"></label>
+          <div id="bindings"></div>
+          <p id="binding-message" role="status"></p>
+          <button id="reset-bindings" type="button">Khôi phục mặc định</button>
         </div>
+        <div id="screen-content"></div>
         <div id="screen-actions"></div>
       </section>
     </div>

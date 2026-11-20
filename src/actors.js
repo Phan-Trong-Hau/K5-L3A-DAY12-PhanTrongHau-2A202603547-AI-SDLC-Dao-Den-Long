@@ -165,7 +165,7 @@ export function moveShades(game, tuning) {
     if (shade.repelling || stoppedDraining || shade.state === 'drain') continue
 
     if (shade.state === 'chase' && !withinXZ(shade, player, 18)) shade.state = 'wander'
-    else if (shade.state === 'wander' && withinXZ(shade, player, 12)) shade.state = 'chase'
+    else if (!game.benchmark && shade.state === 'wander' && withinXZ(shade, player, 12)) shade.state = 'chase'
 
     const speed = game.night === 3 ? tuning.shade_speed_night3 : tuning.shade_speed
     if (shade.state === 'chase') {

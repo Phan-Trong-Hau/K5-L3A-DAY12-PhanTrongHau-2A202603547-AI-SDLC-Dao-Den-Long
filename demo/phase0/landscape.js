@@ -1,13 +1,32 @@
 import * as THREE from 'three'
-import { addStream, addWildlife, streamCenter } from './wildlife.js'
-import { maps } from '../../src/maps.js'
+import { addStream, addWildlife, streamCenter, waterImmersion } from './wildlife.js'
+import { maps, surfaces } from '../../src/maps.js'
 
 const grass = '#2F5D50'
 const sand = '#C9B48A'
 const wood = '#6B4A2F'
 const treeColors = ['#516c78', '#74577a', '#496d5d']
+const habitatsByNight = {
+  1: [{ x: 0, z: 0, radius: 39, scale: 1, angle: 0 }],
+  2: [
+    { x: 0, z: 0, radius: 24, scale: 1, angle: 0 },
+    { x: 70, z: 0, radius: 24, scale: 1, angle: Math.PI },
+  ],
+  3: [{ x: -22, z: -17, radius: 23, scale: 0.72, angle: 0 }],
+}
 
-export function createLandscape(scene, night) {
+function inHabitat(habitat, x, z) {
+  const dx = (x - habitat.x) / habitat.scale
+  const dz = (z - habitat.z) / habitat.scale
+  return { x: dx * habitat.cosine - dz * habitat.sine, z: dx * habitat.sine + dz * habitat.cosine }
+}
+
+function nearStream(habitat, x, z) {
+  const local = inHabitat(habitat, x, z)
+  return Math.abs(local.z) < habitat.radius - 1 && Math.abs(local.x - streamCenter(local.z)) < 3
+}
+
+export function createLandscape(scene, night, { benchmark = false } = {}) {
   const scenery = new THREE.Group()
   const terrain = new THREE.Group()
   scenery.add(terrain)
@@ -75,6 +94,52 @@ export function createLandscape(scene, night) {
     mesh(scenery, new THREE.CylinderGeometry(0.55, 0.55, 0.055, 24), '#F2C14E', pad.x, pad.y, pad.z, '#945821')
   }
 
+  const habitats = (benchmark ? [] : habitatsByNight[night]).map((habitat, index) => {
+    const group = new THREE.Group()
+    group.name = `wildlife-habitat-${index + 1}`
+    group.position.set(habitat.x, 0, habitat.z)
+    group.rotation.y = habitat.angle
+    group.scale.setScalar(habitat.scale)
+    scenery.add(group)
+    return {
+      ...habitat, group, cosine: Math.cos(habitat.angle), sine: Math.sin(habitat.angle),
+      stream: addStream(group, habitat.radius), animals: addWildlife(group, night, habitat.radius),
+    }
+  })
+
+  const nearMapFeature = (x, z) =>
+    (night === 2 && x > 24 && x < 46 && Math.abs(z) < 3) ||
+    map.lanterns.some(([lx, , lz]) => Math.hypot(x - lx, z - lz) < 3.5) ||
+    map.pads.some(pad => Math.hypot(x - pad.x, z - pad.z) < 3)
+
+  const stoneGeometry = new THREE.DodecahedronGeometry(1)
+  const stoneMaterial = new THREE.MeshLambertMaterial({ color: '#fff' })
+  const stones = new THREE.InstancedMesh(stoneGeometry, stoneMaterial, map.centers.length * 42)
+  stones.name = 'scenery-stones'
+  const stone = new THREE.Object3D()
+  const stoneColors = ['#8997a0', '#666b85', '#aea18b'].map(color => new THREE.Color(color))
+  let stoneCount = 0
+  for (const center of map.centers) {
+    for (let index = 0; !benchmark && index < 42; index++) {
+      const radius = 6 + (map.radius - 7) * Math.sqrt(random())
+      const theta = index * 2.39996
+      const x = center + Math.cos(theta) * radius
+      const z = Math.sin(theta) * radius
+      const levels = surfaces(night, x, z)
+      if (levels.some(level => level.ramp) || nearMapFeature(x, z) ||
+          habitats.some(habitat => nearStream(habitat, x, z))) continue
+      const size = 0.18 + random() * 0.45
+      stone.position.set(x, Math.max(...levels.map(level => level.y)) + size * 0.17, z)
+      stone.rotation.set(0, random() * Math.PI, 0)
+      stone.scale.set(size, size * 0.45, size * 0.8)
+      stone.updateMatrix()
+      stones.setMatrixAt(stoneCount, stone.matrix)
+      stones.setColorAt(stoneCount++, stoneColors[index % stoneColors.length])
+    }
+  }
+  stones.count = stoneCount
+  scenery.add(stones)
+
   const jewel = new THREE.IcosahedronGeometry(1, 0)
   const cone = new THREE.ConeGeometry(1, 1, 8)
   const trunk = new THREE.CylinderGeometry(0.19, 0.35, 1, 7)
@@ -85,10 +150,9 @@ export function createLandscape(scene, night) {
       const theta = index * 2.39996
       const x = center + Math.cos(theta) * radius
       const z = Math.sin(theta) * radius
-      if ((night === 1 && Math.abs(x - streamCenter(z)) < 3) ||
+      if (habitats.some(habitat => nearStream(habitat, x, z)) ||
           (night === 3 && radius < 31 && z > 0) ||
-          map.lanterns.some(([lx, , lz]) => Math.hypot(x - lx, z - lz) < 4) ||
-          map.pads.some(pad => Math.hypot(x - pad.x, z - pad.z) < 3) ||
+          nearMapFeature(x, z) ||
           trees.some(tree => Math.hypot(x - tree.root.position.x, z - tree.root.position.z) < 3)) continue
       const height = 3 + random() * 4
       const root = new THREE.Group()
@@ -140,8 +204,6 @@ export function createLandscape(scene, night) {
   }
   const hideTree = new THREE.Matrix4().makeScale(0, 0, 0)
 
-  const animateStream = night === 1 ? addStream(scenery, map.radius) : null
-  const animateWildlife = night === 1 ? addWildlife(scenery) : null
   const leafMaterial = new THREE.MeshBasicMaterial({ color: '#b7b286', side: THREE.DoubleSide })
   const leafMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.23, 0.12), leafMaterial, 32)
   scenery.add(leafMesh)
@@ -149,9 +211,20 @@ export function createLandscape(scene, night) {
   const leaf = new THREE.Object3D()
   return {
     terrain,
+    immersionAt({ x, y, z, grounded }) {
+      if (!grounded || Math.abs(y) > 0.15) return 0
+      return Math.max(0, ...habitats.map(habitat => {
+        const local = inHabitat(habitat, x, z)
+        return waterImmersion(local.x, local.z, habitat.radius)
+      }))
+    },
     animate(seconds, camera, player, wind) {
-      animateStream?.(seconds)
-      animateWildlife?.(seconds)
+      for (const habitat of habitats) {
+        habitat.group.visible = Math.hypot(camera.position.x - habitat.x, camera.position.z - habitat.z) < 68
+        if (!habitat.group.visible) continue
+        habitat.stream(seconds)
+        habitat.animals(seconds)
+      }
       const dx = camera.position.x - player.x
       const dz = camera.position.z - player.z
       for (const tree of trees) {

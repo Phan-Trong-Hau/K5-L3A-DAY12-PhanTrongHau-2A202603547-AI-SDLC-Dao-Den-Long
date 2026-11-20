@@ -2,7 +2,10 @@ import * as THREE from 'three'
 import { availableLantern, capacity, createGame, maps, stepGame, timeLeft, tuning } from '../../src/game.js'
 import { dt as stepSeconds } from '../../src/movement.js'
 import { createLandscape } from './landscape.js'
+import { addScore, downloadScores, getScores } from './local-scores.js'
+import { validName } from '../../src/leaderboard.js'
 import { createAudio } from './audio.js'
+import { createDashPuffEffect } from './dash-puff.js'
 import { fuelOf, lightCost, lowFuel, nearestLantern } from '../../src/lanterns.js'
 
 const scene = new THREE.Scene()
@@ -84,10 +87,10 @@ function makeGhost() {
 const player = new THREE.Group()
 scene.add(player)
 const pigGeometry = new THREE.SphereGeometry(1, 16, 12)
-const charcoal = '#302235'
+const charcoal = '#241e2b'
 const cloak = '#E8E2D0'
 const scarf = '#C8102E'
-const pink = '#f291ae'
+const pink = '#ff92b4'
 const legs = []
 
 function pigPart(color, x, y, z, width, height, depth, parent = player) {
@@ -97,7 +100,13 @@ function pigPart(color, x, y, z, width, height, depth, parent = player) {
 }
 
 pigPart(charcoal, 0, 0.62, 0.14, 0.51, 0.46, 0.67)
-pigPart(cloak, 0, 0.73, 0.20, 0.515, 0.40, 0.53)
+pigPart(cloak, 0, 0.75, -0.03, 0.49, 0.36, 0.24)
+const curlyTail = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 0.73, 0.73), new THREE.Vector3(0.05, 0.82, 0.85),
+  new THREE.Vector3(0.17, 0.90, 0.85), new THREE.Vector3(0.23, 0.83, 0.84),
+  new THREE.Vector3(0.17, 0.78, 0.86), new THREE.Vector3(0.12, 0.84, 0.89),
+])
+mesh(player, new THREE.TubeGeometry(curlyTail, 20, 0.036, 6, false), pink, 0, 0, 0)
 pigPart(scarf, 0, 0.86, -0.25, 0.40, 0.25, 0.16)
 pigPart(charcoal, 0, 0.82, -0.43, 0.47, 0.42, 0.39)
 pigPart(pink, 0, 0.76, -0.75, 0.28, 0.19, 0.15)
@@ -159,7 +168,23 @@ let strideMark = 0
 const hoofPosition = new THREE.Vector3()
 
 const audio = createAudio()
-const defaults = { volume: 0.55, sensitivity: 1, accessiblePalette: false }
+const dashPuffs = createDashPuffEffect(scene)
+const defaults = { volume: 0.55, sensitivity: 1, accessiblePalette: false, reducedMotion: false, largeText: false }
+const defaultKeys = {
+  up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', jump: 'Space',
+  dash: 'ShiftLeft', interact: 'KeyE', pulse: 'KeyQ', pause: 'Escape',
+}
+const actionLabels = {
+  up: 'Lên', down: 'Xuống', left: 'Trái', right: 'Phải', jump: 'Nhảy', dash: 'Lướt',
+  interact: 'Nạp đèn', pulse: 'Tỏa Sáng', pause: 'Tạm dừng',
+}
+const fallbackKeys = {
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ShiftRight: 'dash', KeyP: 'pause',
+}
+function keyLabel(code) {
+  return ({ Space: 'Space', ShiftLeft: 'Shift', ShiftRight: 'Shift phải', Escape: 'Esc' })[code] ??
+    code.replace(/^(Key|Digit)/, '')
+}
 function loadSettings() {
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem('dao-den-long-settings')) }
@@ -168,9 +193,16 @@ function loadSettings() {
   }
 }
 const settings = loadSettings()
+let bindings = { ...defaultKeys, ...settings.bindings }
+let bindingAction
+function saveSettings() {
+  try { localStorage.setItem('dao-den-long-settings', JSON.stringify({ ...settings, bindings })) } catch { /* Storage can be disabled. */ }
+}
 function applySettings() {
   audio.volume(settings.volume)
   document.body.classList.toggle('accessible-palette', settings.accessiblePalette)
+  document.body.classList.toggle('reduced-motion', settings.reducedMotion)
+  document.documentElement.classList.toggle('large-text', settings.largeText)
   const accent = settings.accessiblePalette ? '#00B3FF' : '#7A3CFF'
   ghostEyes.color.set(accent)
   ghostOutline.color.set(accent)
@@ -191,9 +223,37 @@ for (const name of Object.keys(defaults)) {
   control.addEventListener('input', () => {
     settings[name] = checkbox ? control.checked : control.valueAsNumber
     applySettings()
-    try { localStorage.setItem('dao-den-long-settings', JSON.stringify(settings)) } catch { /* Storage can be disabled. */ }
+    saveSettings()
   })
 }
+const bindingPanel = byId('bindings')
+const bindingMessage = byId('binding-message')
+const content = byId('screen-content')
+function renderBindings() {
+  bindingPanel.replaceChildren(...Object.entries(actionLabels).map(([action, label]) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = `${label} · ${action === bindingAction ? 'Nhấn phím…' : keyLabel(bindings[action])}`
+    button.setAttribute('aria-pressed', String(action === bindingAction))
+    button.addEventListener('click', () => {
+      bindingAction = action
+      bindingMessage.textContent = 'Nhấn phím mới.'
+      renderBindings()
+    })
+    return button
+  }))
+  byId('dash-key').textContent = keyLabel(bindings.dash)
+  byId('pulse-key').textContent = keyLabel(bindings.pulse)
+}
+byId('reset-bindings').addEventListener('click', () => {
+  bindings = { ...defaultKeys }
+  bindingAction = undefined
+  bindingMessage.textContent = 'Đã khôi phục phím mặc định.'
+  saveSettings()
+  renderBindings()
+})
+renderBindings()
+
 const introductions = [
   'Ông Đăng: “Giữ ít nhất ba đèn sáng tới bình minh. Châm thêm dầu trước khi Bóng Mực tìm được đèn yếu.”',
   'Ông Đăng: “Giữ bốn đèn sáng tới bình minh. Cầu tre dẫn sang bờ bên kia. Bục nhảy cũng đưa con qua biển mây. Giữ chặt đom đóm khi Gió Lạc đến.”',
@@ -205,10 +265,13 @@ let total = 0
 let game
 let landscape
 let landscapeNight
-let seed = Date.now()
+let campaignSeed = Date.now()
+let nightsWon = 0
+let spawnNotice
 let accumulatedTime = 0
 let previousTime
 let cameraHeight = 0
+let playerImmersion = 0
 let lastCountdown = 11
 
 const sceneryActors = new THREE.Group()
@@ -237,12 +300,23 @@ const tearGeometry = new THREE.ShapeGeometry(tornPaper)
 const tearMaterial = new THREE.MeshBasicMaterial({ color: '#131725', side: THREE.DoubleSide })
 const towardCamera = new THREE.Vector3()
 const lanternCoreGeometry = new THREE.SphereGeometry(0.26, 10, 8)
-const moteGeometry = new THREE.SphereGeometry(0.105, 8, 6)
-const moteHaloGeometry = new THREE.SphereGeometry(0.2, 8, 6)
+const moteGeometry = new THREE.SphereGeometry(1, 10, 8)
+const moteBodyMaterial = new THREE.MeshBasicMaterial({ color: '#a36d33' })
 const moteMaterial = new THREE.MeshBasicMaterial({ color: '#FFF6C2' })
-const moteHaloMaterial = new THREE.MeshBasicMaterial({
-  color: '#FFE58A', transparent: true, opacity: 0.26, depthWrite: false,
+const moteWingMaterial = new THREE.MeshBasicMaterial({ color: '#fff1ce', transparent: true, opacity: 0.72 })
+const glowCanvas = document.createElement('canvas')
+glowCanvas.width = glowCanvas.height = 64
+const glowContext = glowCanvas.getContext('2d')
+const gradient = glowContext.createRadialGradient(32, 32, 0, 32, 32, 31)
+gradient.addColorStop(0, 'rgba(255,230,153,0.92)')
+gradient.addColorStop(0.26, 'rgba(255,205,88,0.40)')
+gradient.addColorStop(1, 'rgba(255,189,70,0)')
+glowContext.fillStyle = gradient
+glowContext.fillRect(0, 0, 64, 64)
+const moteHaloMaterial = new THREE.SpriteMaterial({
+  map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
 })
+
 const charmGeometry = new THREE.PlaneGeometry(0.49, 0.78)
 const charmBorder = new THREE.PlaneGeometry(0.62, 0.94)
 const charmMaterial = new THREE.MeshBasicMaterial({ color: '#C8102E', side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 })
@@ -279,7 +353,8 @@ function clearViews(views, dispose = () => {}) {
 
 function loadNight(nextNight) {
   night = nextNight
-  game = createGame(seed++, {}, night)
+  game = createGame(campaignSeed + night - 1, {}, night)
+  spawnNotice = undefined
   if (landscapeNight !== night) {
     landscape?.dispose()
     landscape = createLandscape(scene, night)
@@ -301,13 +376,18 @@ function loadNight(nextNight) {
   accumulatedTime = 0
   lastCountdown = 11
   cameraHeight = game.player.y
+  playerImmersion = 0
   pulseAt = -Infinity
+  dashPuffs.clear()
   stride = strideMark = printIndex = 0
   for (const print of prints) print.visible = false
 }
 
 function show(next, heading, text, actions = []) {
   screen = next
+  bindingAction = undefined
+  bindingMessage.textContent = ''
+  content.replaceChildren()
   overlay.hidden = next === 'play'
   hud.hidden = !['play', 'pause', 'result'].includes(next)
   settingsPanel.hidden = next !== 'settings'
@@ -326,8 +406,9 @@ function show(next, heading, text, actions = []) {
 }
 function menu() {
   show('menu', 'Đảo Đèn Lồng',
-    'Giữ đủ đèn sáng đến bình minh. Dùng đom đóm để thắp đèn hoặc châm dầu.\nWASD hoặc chuột phải để đi · Space để nhảy · Shift để lướt · E để nạp đèn · Q hoặc chuột trái để tỏa sáng · Esc/P để dừng.',
-    [['Bắt đầu', () => { total = 0; introduce(1) }], ['Cài đặt', () => openSettings(menu)]])
+    'Giữ đủ đèn sáng đến bình minh. Dùng đom đóm để thắp đèn hoặc châm dầu.\nWASD hoặc chuột phải để đi · Space để nhảy · Shift để lướt và xì hơi · E để nạp đèn · Q hoặc chuột trái để tỏa sáng · Esc/P để dừng.',
+    [['Bắt đầu', () => { total = 0; nightsWon = 0; campaignSeed = Date.now(); introduce(1) }],
+      ['Bảng xếp hạng', showLeaderboard], ['Cài đặt', () => openSettings(menu)]])
 }
 function play() {
   show('play', '', '')
@@ -340,6 +421,7 @@ function introduce(nextNight) {
 }
 function openSettings(back) {
   show('settings', 'Cài đặt', '', [['Quay lại', back]])
+  renderBindings()
 }
 function pause() {
   keys.clear()
@@ -358,42 +440,119 @@ function showPause() {
       ['Cài đặt', () => openSettings(showPause)], ['Về menu', menu]])
 }
 
+function scoreForm() {
+  const form = document.createElement('form')
+  form.className = 'score-form'
+  const input = document.createElement('input')
+  input.name = 'name'
+  input.placeholder = 'Tên người chơi'
+  input.setAttribute('aria-label', 'Tên người chơi, từ 3 đến 12 ký tự')
+  input.required = true
+  input.maxLength = 12
+  input.pattern = '[A-Za-z0-9_]{3,12}'
+  const button = document.createElement('button')
+  button.type = 'submit'
+  button.textContent = 'Lưu điểm'
+  const message = document.createElement('p')
+  message.setAttribute('role', 'status')
+  form.append(input, button)
+  content.append(form, message)
+  form.addEventListener('submit', async event => {
+    event.preventDefault()
+    const name = input.value.trim()
+    if (!validName(name) || button.disabled) return
+    button.disabled = true
+    try {
+      await addScore({ name, score: total, nights_won: nightsWon, achieved_at: new Date().toISOString(), seed: campaignSeed })
+      form.replaceWith()
+      message.textContent = 'Đã lưu điểm.'
+    } catch {
+      message.textContent = 'Không lưu được điểm. Bạn có thể thử lại.'
+      button.disabled = false
+    }
+  })
+}
+
+async function showLeaderboard() {
+  let entries = []
+  show('leaderboard', 'Bảng xếp hạng', 'Đang tải…',
+    [['Về menu', menu], ['Xuất JSON', () => downloadScores(entries)]])
+  try {
+    entries = await getScores()
+    if (screen !== 'leaderboard') return
+    description.textContent = entries.length ? '' : 'Chưa có điểm đã lưu.'
+    const list = document.createElement('ol')
+    list.className = 'score-list'
+    for (const entry of entries) {
+      const item = document.createElement('li')
+      item.textContent = `${entry.name} · ${entry.score} điểm · ${entry.nights_won}/3 đêm`
+      list.append(item)
+    }
+    content.replaceChildren(list)
+  } catch {
+    if (screen === 'leaderboard') description.textContent = 'Không đọc được điểm đã lưu.'
+  }
+}
+
 function finish(result) {
   audio.play(result)
-  if (result === 'won') total += game.score
+  if (result === 'won') {
+    total += game.score
+    nightsWon++
+  }
   const text = `Điểm Đêm ${night}: ${game.score} · Tổng điểm: ${total}`
   if (result === 'won' && night === 3) {
     show('dawn', 'Bình Minh', `Cả ba đảo đã sáng trở lại. Tổng điểm: ${total}.`, [['Về menu', menu]])
+    scoreForm()
     return
   }
   show('result', result === 'won' ? 'Đảo đã sáng trở lại!' : 'Đêm chưa qua',
     text, [[result === 'won' ? 'Đêm kế tiếp' : 'Chơi lại Đêm',
       () => introduce(result === 'won' ? night + 1 : night)], ['Về menu', menu]])
+  if (result === 'lost') scoreForm()
 }
 
 const keys = new Set()
 const actions = new Set()
-const keyActions = new Map([
-  ['Space', 'jump'], ['KeyE', 'interact'], ['KeyQ', 'pulse'], ['ShiftLeft', 'dash'], ['ShiftRight', 'dash'],
-])
-const movementKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'])
+const directions = new Set(['up', 'down', 'left', 'right'])
+function mapKey(code) {
+  const direct = Object.keys(bindings).find(action => bindings[action] === code)
+  if (direct) return direct
+  const alternate = fallbackKeys[code]
+  return alternate && bindings[alternate] === defaultKeys[alternate] ? alternate : undefined
+}
+function isHeld(action) {
+  return [...keys].some(code => mapKey(code) === action)
+}
 window.addEventListener('keydown', event => {
-  if (['Escape', 'KeyP'].includes(event.code) && !event.repeat) {
-    if (screen === 'play' || screen === 'pause') {
-      event.preventDefault()
-      if (screen === 'play') pause()
-      else resume()
+  if (bindingAction && !event.repeat) {
+    event.preventDefault()
+    const action = bindingAction
+    const duplicate = mapKey(event.code)
+    if (duplicate && duplicate !== action) {
+      bindingMessage.textContent = `Phím ${keyLabel(event.code)} đang dùng cho ${actionLabels[duplicate]}.`
+      return
     }
+    bindings[action] = event.code
+    bindingAction = undefined
+    bindingMessage.textContent = 'Đã lưu phím mới.'
+    saveSettings()
+    renderBindings()
     return
   }
-  const action = keyActions.get(event.code)
-  if (screen !== 'play' || (!action && !movementKeys.has(event.code))) return
+  const action = mapKey(event.code)
+  if (action === 'pause' && !event.repeat && ['play', 'pause'].includes(screen)) {
+    event.preventDefault()
+    if (screen === 'play') pause()
+    else resume()
+    return
+  }
+  if (screen !== 'play' || !action || action === 'pause') return
   event.preventDefault()
-  if (movementKeys.has(event.code)) {
+  if (directions.has(action)) {
     keys.add(event.code)
     clearPointerTarget()
-  }
-  if (action && !event.repeat) actions.add(action)
+  } else if (!event.repeat) actions.add(action)
 })
 window.addEventListener('keyup', event => keys.delete(event.code))
 window.addEventListener('blur', () => {
@@ -450,6 +609,8 @@ function handleEvents(events, time = performance.now()) {
   for (const { name, data } of events) {
     if (name === 'game_over') finish(data.result)
     else audio.play(name)
+    if (name === 'shade_spawned') spawnNotice = { id: data.id, until: game.simTick + 180 }
+    if (name === 'dash') dashPuffs.emit(game.player, game.simTick)
     if (name === 'pulse') {
       pulseAt = time
       pulseView.position.set(game.player.x, game.player.y + 0.10, game.player.z)
@@ -464,8 +625,8 @@ function handleEvents(events, time = performance.now()) {
 
 function advance(time, elapsed, cosine, sine) {
   accumulatedTime += Math.min(elapsed, 0.1)
-  const localX = Number(keys.has('KeyD') || keys.has('ArrowRight')) - Number(keys.has('KeyA') || keys.has('ArrowLeft'))
-  const localZ = Number(keys.has('KeyS') || keys.has('ArrowDown')) - Number(keys.has('KeyW') || keys.has('ArrowUp'))
+  const localX = Number(isHeld('right')) - Number(isHeld('left'))
+  const localZ = Number(isHeld('down')) - Number(isHeld('up'))
   const keyboardX = localX * cosine + localZ * sine
   const keyboardZ = -localX * sine + localZ * cosine
   while (accumulatedTime >= stepSeconds && screen === 'play') {
@@ -490,9 +651,11 @@ function advance(time, elapsed, cosine, sine) {
   audio.ambient()
 }
 
-function updatePlayer(time, previousX, previousZ) {
+function updatePlayer(time, elapsed, previousX, previousZ) {
   const position = game.player
-  player.position.set(position.x, position.y, position.z)
+  const immersion = landscape.immersionAt(position)
+  playerImmersion = THREE.MathUtils.lerp(playerImmersion, immersion, 1 - Math.exp(-Math.min(elapsed, 0.1) * 8))
+  player.position.set(position.x, position.y - playerImmersion * 0.56, position.z)
   player.visible = !position.respawnAt
   if (position.immuneUntil > game.simTick && Math.floor(time / 95) % 3 === 0) player.visible = false
   const walk = Math.hypot(position.x - previousX, position.z - previousZ)
@@ -504,7 +667,7 @@ function updatePlayer(time, previousX, previousZ) {
     joint.rotation.x = THREE.MathUtils.lerp(joint.rotation.x, swing, 0.58)
   }
   const mark = Math.floor(stride / Math.PI)
-  if (onGround && mark > strideMark) {
+  if (onGround && playerImmersion < 0.14 && mark > strideMark) {
     for (const { joint, phase } of legs) {
       if (phase !== (mark % 2 ? 0 : Math.PI)) continue
       joint.getWorldPosition(hoofPosition)
@@ -527,7 +690,7 @@ function updatePlayer(time, previousX, previousZ) {
   pulseView.visible = progress < 1
   if (pulseView.visible) {
     pulseView.scale.setScalar(Math.max(0.1, progress * tuning.pulse_radius))
-    pulseView.material.opacity = 1 - progress
+    pulseView.material.opacity = (settings.reducedMotion ? 0.4 : 1) * (1 - progress)
   }
 }
 
@@ -549,10 +712,35 @@ function syncActors(items, views, add, update, remove = view => view.removeFromP
 function updateActors(time) {
   syncActors(game.motes, moteViews, () => {
     const view = new THREE.Group()
-    view.add(new THREE.Mesh(moteGeometry, moteMaterial), new THREE.Mesh(moteHaloGeometry, moteHaloMaterial))
+    const body = new THREE.Mesh(moteGeometry, moteBodyMaterial)
+    body.scale.set(0.093, 0.079, 0.20)
+    const abdomen = new THREE.Mesh(moteGeometry, moteMaterial)
+    abdomen.position.z = 0.11
+    abdomen.scale.set(0.079, 0.067, 0.13)
+    const glow = new THREE.Sprite(moteHaloMaterial)
+    glow.position.z = 0.12
+    const wings = [-1, 1].map(side => {
+      const joint = new THREE.Group()
+      const wing = new THREE.Mesh(moteGeometry, moteWingMaterial)
+      wing.scale.set(0.15, 0.023, 0.078)
+      wing.position.set(side * 0.12, 0.06, -0.03)
+      joint.add(wing)
+      return joint
+    })
+    view.add(body, abdomen, glow, ...wings)
+    view.userData = { glow, wings }
     scene.add(view)
     return view
-  }, (view, mote) => view.position.set(mote.x, mote.y + 0.68 + Math.sin(time / 750 + mote.x) * 0.22, mote.z))
+  }, (view, mote, index) => {
+    const flutter = time / 620 + index * 1.7
+    view.position.set(mote.x + Math.cos(flutter) * 0.12,
+      mote.y + 0.77 + Math.sin(flutter) * 0.17, mote.z + Math.sin(flutter) * 0.12)
+    view.rotation.y = flutter + Math.PI
+    view.userData.glow.scale.setScalar(0.68 + Math.sin(flutter * 1.8) * 0.14)
+    const flap = Math.sin(time / 26 + index) * 0.9
+    view.userData.wings[0].rotation.z = flap
+    view.userData.wings[1].rotation.z = -flap
+  })
 
   syncActors(game.shades, shadeViews, makeGhost, ({ ghost, body, arms }, shade, index) => {
     ghost.position.set(shade.x, shade.y + Math.sin(time / 390 + index) * 0.16, shade.z)
@@ -636,11 +824,20 @@ const hudText = (id, text) => {
   const element = byId(id)
   if (element.textContent !== text) element.textContent = text
 }
+function updateAbility(name, value, text, style) {
+  const meter = byId(`${name}-meter`)
+  meter.value = value
+  const row = meter.parentElement
+  row.classList.toggle('ready', style === 'ready')
+  row.classList.toggle('shortage', style === 'shortage')
+  hudText(`${name}-status`, text)
+}
+
 function updateHud() {
   const count = game.lanterns.filter(lantern => lantern.lit).length
   ambient.intensity = 0.15 + 0.55 * count / game.lanterns.length
   if (hud.hidden) return
-  const { carried, flames, charmUntil, dashReady, pulseReady } = game.player
+  const { carried, flames, charmUntil, dashReady, dashUntil, pulseReady } = game.player
   const seconds = Math.ceil(timeLeft(game))
   hudText('flames', '🔥'.repeat(flames) + '○'.repeat(Math.max(0, tuning.flames - flames)))
   hudText('timer', `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`)
@@ -654,14 +851,56 @@ function updateHud() {
   })
   moteCount.textContent = `${carried}/${max}`
   motesHud.setAttribute('aria-label', `Đom đóm ${carried}/${max}`)
-  const cooldown = until => until > game.simTick ? `${((until - game.simTick) / 60).toFixed(1)}s` : 'sẵn sàng'
-  const dash = charmUntil > game.simTick ? 'Bùa Gió' : cooldown(dashReady)
-  hudText('cooldowns', `↠ Shift ${dash} · ✦ Q ${cooldown(pulseReady)}`)
+  const tick = game.simTick
+  const filling = (until, duration) => THREE.MathUtils.clamp(1 - (until - tick) / (duration * 60), 0, 1)
+  const gliding = dashUntil > tick
+  const dashCooling = dashReady > tick && charmUntil <= tick
+  const pulseCooling = pulseReady > tick
+  const missing = Math.max(0, tuning.pulse_cost - carried)
+  const unavailable = game.state === 'paused' ? 'Tạm dừng'
+    : game.state !== 'playing' ? 'Hết đêm' : game.player.respawnAt ? 'Đang hồi sinh' : ''
+
+  const dashProgress = dashCooling ? filling(dashReady, tuning.dash_cooldown_s)
+    : gliding ? filling(dashUntil, tuning.dash_duration_s) : 1
+  const dashText = gliding ? 'Đang lướt' : dashCooling ? 'Hồi chiêu' : 'Sẵn sàng'
+  updateAbility('dash', dashProgress, unavailable || dashText,
+    !unavailable && !gliding && !dashCooling ? 'ready' : '')
+
+  const pulseProgress = pulseCooling ? filling(pulseReady, tuning.pulse_cooldown_s)
+    : Math.min(1, carried / tuning.pulse_cost)
+  const pulseText = pulseCooling ? (missing ? `Hồi chiêu · Thiếu ${missing}` : 'Hồi chiêu')
+    : missing ? `Thiếu ${missing} đom đóm` : 'Sẵn sàng'
+  updateAbility('pulse', pulseProgress, unavailable || pulseText,
+    unavailable || pulseCooling ? '' : missing ? 'shortage' : 'ready')
   const nearby = availableLantern(game, game.player)
+  const interactKey = keyLabel(bindings.interact)
   const nearbyText = nearby?.lit
-    ? `E — Châm dầu (${Math.floor(fuelOf(nearby))}/${tuning.fuel_max})`
-    : nearby ? `E — Nạp ánh sáng (${nearby.deposited}/${lightCost(nearby, tuning)})` : ''
+    ? `${interactKey} — Châm dầu (${Math.floor(fuelOf(nearby))}/${tuning.fuel_max})`
+    : nearby ? `${interactKey} — Nạp ánh sáng (${nearby.deposited}/${lightCost(nearby, tuning)})` : ''
   hudText('hint', nearbyText || (game.wind.warning ? '⚠ Gió mạnh sắp đến' : ''))
+
+  const spawned = spawnNotice?.until > tick ? game.shades.find(shade => shade.id === spawnNotice.id) : undefined
+  const alerts = []
+  if (spawned) alerts.push('Bóng Mực xuất hiện')
+  if (game.wind.warning) alerts.push('Gió mạnh sắp thổi')
+  if (seconds > 0 && seconds <= 10) alerts.push(`Bình minh sau ${seconds}`)
+  const low = game.lanterns.filter(lantern => lowFuel(lantern, tuning)).map(lantern => lantern.id)
+  if (low.length) alerts.push(`Đèn sắp cạn dầu: ${low.join(', ')}`)
+  hudText('announcements', alerts.join(' · '))
+  const shadeArrow = byId('shade-arrow')
+  shadeArrow.hidden = !spawned
+  if (spawned) {
+    arrowTarget.set(spawned.x, spawned.y, spawned.z)
+    viewPoint.copy(arrowTarget).project(camera)
+    camera.getWorldDirection(headingVector)
+    const direction = headingVector.dot(arrowTarget.sub(camera.position)) > 0 ? 1 : -1
+    const x = direction * viewPoint.x || 0
+    const y = direction * viewPoint.y || 0.001
+    const scale = 0.86 / Math.max(Math.abs(x), Math.abs(y))
+    shadeArrow.style.left = `${(1 + x * scale) * 50}%`
+    shadeArrow.style.top = `${(1 - y * scale) * 50}%`
+    shadeArrow.style.transform = `translate(-50%, -50%) rotate(${Math.atan2(x, y)}rad)`
+  }
 
   const target = nearestLantern(game, game.player, lantern => !lantern.lit)
   if (!target) {
@@ -693,14 +932,16 @@ function frame(time) {
   const oldZ = before.z
   if (screen === 'play') advance(time, elapsed, cosine, sine)
   const position = game.player
-  updatePlayer(time, oldX, oldZ)
-  cameraHeight = THREE.MathUtils.lerp(cameraHeight, Math.max(-3, position.y), 0.16)
+  updatePlayer(time, elapsed, oldX, oldZ)
+  const height = Math.max(-3, position.y)
+  cameraHeight = settings.reducedMotion ? height : THREE.MathUtils.lerp(cameraHeight, height, 0.16)
   const cameraOffset = 14 * zoom
   camera.position.set(position.x + cameraOffset * sine, cameraHeight + 9 * zoom, position.z + cameraOffset * cosine)
   camera.lookAt(position.x - 2.5 * sine, cameraHeight + 1.45, position.z - 2.5 * cosine)
   camera.updateMatrixWorld()
   landscape.animate(time / 1000, camera, position, game.wind)
   updateActors(time)
+  dashPuffs.update(game.simTick)
   updateHud()
   renderer.render(scene, camera)
 }

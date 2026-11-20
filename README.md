@@ -1,5 +1,7 @@
 # Day 12 — AI SDLC: Đảo Đèn Lồng
 
+[Video demo MP4](https://github.com/Phan-Trong-Hau/K5-L3A-DAY12-PhanTrongHau-2A202603547-AI-SDLC-Dao-Den-Long/releases/download/v1.0.0/demo.mp4) · [Bản phát hành v1.0.0](https://github.com/Phan-Trong-Hau/K5-L3A-DAY12-PhanTrongHau-2A202603547-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0)
+
 > **Cá nhân** (1 người / 1 MSSV) · Áp dụng SDLC cùng AI để xây một **game 3D** qua **4 phase**, từ yêu cầu ban đầu tới bản phát hành.
 > **Lab board + trợ giảng:** **[Đảo Đèn Lồng Lab](https://claude.ai/artifact/Q1RYyv1dxjUczzCbd2ZnoW)**
 
@@ -7,7 +9,7 @@
 
 ## Chạy bản web
 
-Cần Node.js 22.14.0 trở lên. Từ thư mục gốc repo, chạy:
+Game 3D trên trình duyệt. Cần macOS hoặc Linux, Node.js 22.14.0 trở lên và trình duyệt hỗ trợ WebGL 2. Phép đo benchmark cần Chrome hoặc Chromium. Từ thư mục gốc repo, dùng hai lệnh sau.
 
 ```bash
 npm ci
@@ -16,12 +18,14 @@ npm run dev
 
 Mở địa chỉ Vite in trong terminal. Bấm **Bắt đầu** để chơi lần lượt Đảo Bến, Đảo Cau và Đảo Chuông. Nhặt đom đóm, thắp đèn và giữ đủ đèn sáng tới bình minh. Cần 3/5 đèn ở Đảo Bến, 4/6 ở Đảo Cau và 5/7 ở Đảo Chuông.
 
-- **WASD / phím mũi tên hoặc chuột phải** để đi, **Space** để nhảy và **Shift** để lướt.
+- **WASD / phím mũi tên hoặc chuột phải** để đi, **Space** để nhảy và **Shift** để lướt và xì hơi. Hai thanh ở góc dưới bên phải đầy dần trong lúc hồi chiêu và chuyển xanh khi sẵn sàng. Tỏa Sáng báo thiếu đom đóm nếu cần.
 - **E** để nạp đèn tắt hoặc châm dầu cho đèn đang sáng. **Q hoặc nhấp chuột trái** để tỏa sáng, tốn ba đom đóm. **Kéo chuột trái** để xoay camera, cuộn chuột để zoom.
 - **Esc/P** để tạm dừng. Menu có Cài đặt, Chơi lại Đêm và Về menu. Bật **Bảng màu dễ phân biệt** trong Cài đặt để đổi viền và mắt Bóng Mực sang xanh dương, cảnh báo sang trắng kèm biểu tượng ⚠.
 - Nạp mỗi đom đóm được 5 điểm. Thắp lần đầu được 100 điểm, thắp lại được 40 điểm. Làm choáng Bóng Mực được 5 điểm, hoặc 15 điểm nếu nó đang hút dầu. Khi thắng, mỗi đèn còn sáng cộng 50 điểm cộng phần nguyên của dầu còn lại, mỗi lửa còn lại cộng 50 điểm.
 
-### Headless v1.2
+![Mây trên Đảo Bến và HUD lúc Bóng Mực xuất hiện](docs/proof/phase-4/gameplay.png)
+
+### Headless v1.3
 
 [game.contract.json](game.contract.json) công bố lệnh và tuning cho ba đêm. Để chạy kiểm tra và tạo JSONL:
 
@@ -30,11 +34,30 @@ npm test
 node src/headless.js --seed 7 --night 3 --ticks 18000 --out /tmp/dao-den-long.jsonl
 ```
 
-Nhận `--night 1|2|3`, `--scenario <file.json>`, `--inputs <file.json>` và `--snapshot-every <int>`. Xem [quyết định thiết kế](docs/notes/phase-3.md), [bằng chứng Phase 3](docs/proof/phase-3/README.md) và [changelog](CHANGELOG.md).
+Nhận `--night 1|2|3`, `--scenario <file.json>`, `--inputs <file.json>` và `--snapshot-every <int>`. Xem [bằng chứng Phase 4](docs/proof/phase-4/README.md), [retro](docs/notes/retro.md) và [changelog](CHANGELOG.md).
+
+### Benchmark và soak
+
+```bash
+node scripts/bench.js --seed 42 --duration 30 --out bench.json
+node --expose-gc scripts/soak.js --seed 7 --nights 10 --out soak.json
+```
+
+Benchmark mở Chrome 1280×720, tắt VSync qua cờ Chromium và chạy 3 giây khởi động. Nếu trình duyệt không nằm trên PATH, đặt `CHROME_BIN` trỏ tới executable. Máy không có màn hình dùng Chromium headless với cùng kích thước canvas. `peak_mem_mb` là `null` vì bản web chạy qua nhiều tiến trình Chromium và không có RSS tiến trình game độc lập. Soak chạy 10 lượt trong cùng một tiến trình Node.js.
+
+### Bảng xếp hạng và trợ năng
+
+Nhập tên sau khi thua hoặc tới màn Bình Minh. Bảng điểm lưu top 10 trên đĩa khi chạy bằng Node và trong dữ liệu trình duyệt khi dùng bản web tĩnh. Tên dài 3–12 ký tự, dùng chữ Latin không dấu, số và dấu gạch dưới.
+
+```bash
+node scripts/run.js --export-leaderboard out.json
+```
+
+Cấu hình `DAO_LEADERBOARD_FILE` để dùng file lưu riêng. Trong Cài đặt có đổi phím, khôi phục phím mặc định, bảng màu dễ phân biệt, giảm chuyển động và chữ lớn. Chuột phải để đi, chuột trái để Tỏa Sáng vẫn có sẵn.
 
 ### Sáng tạo của tôi
 
-Mây là chú heo đen hồng đội nón lá, mặc áo màu ngà và mang đèn lồng nhỏ. Đảo Bến có dấu chân, rừng, suối, chim, rắn và ếch ở lớp cảnh quan. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 3.
+Mây là chú heo thân đen, mõm, móng và đuôi hồng, đội nón lá và mang đèn lồng nhỏ. Mỗi lần lướt thành công, Mây xì hơi và để lại một cụm khói hoạt hình. Đom đóm có cánh vỗ, bụng sáng và quầng sáng nhấp nháy. Cả ba đêm có rừng, suối, đá, chim, rắn và ếch. Hai bờ Đảo Cau còn có rùa. Mây, rắn, ếch và rùa chìm dần đến ngang thân khi lội qua suối. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 3.
 
 ## Tài liệu của lab
 

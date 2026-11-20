@@ -19,3 +19,11 @@ Tái hiện fixture bình minh:
 node src/headless.js --seed 17 --night 1 --ticks 7 --snapshot-every 1 --scenario docs/proof/phase-3/scenario-dawn.json --inputs docs/proof/phase-3/inputs-dawn.json --out /tmp/dao-phase3-dawn.jsonl
 cmp docs/proof/phase-3/dawn.jsonl /tmp/dao-phase3-dawn.jsonl
 ```
+
+## Bản xem trước sau tag phase-3
+
+- Chromium 1280×720 trên bản Đảo Bến mặc định. Shift tạo cụm khói sau đuôi rồi tan. Bấm lần nữa trong hồi chiêu không tạo thêm khói. HUD Shift chuyển qua hồi rồi sẵn sàng. Fixture cấp 3 đom đóm xác nhận Q hiện sẵn sàng, sau khi dùng hiện hồi chiêu và thiếu 3. Đom đóm có hai cánh chuyển động và quầng sáng.
+- Fixture rút thời gian trên Chromium chuyển qua ba Đêm. Cảnh có một khu suối ở Đảo Bến, hai khu ở hai bờ của Đảo Cau và một khu ở tầng thấp Đảo Chuông. Cả ba cảnh tải các nhóm chuyển động và đá.
+- `npm test` đạt 24/24. Chạy lại hai fixture bình minh và hút dầu, JSONL khớp từng byte với bằng chứng tại tag `phase-3`.
+- Kiểm tra HUD thanh hồi chiêu ở 1280×720. Shift làm thanh đầy dần, pause giữ nguyên tiến độ và tiếp tục thì đầy đến trạng thái sẵn sàng. Với fixture có ba đom đóm, Q chuyển từ sẵn sàng sang hồi chiêu, thanh tăng dần rồi báo thiếu đom đóm khi đã hồi xong.
+- Kiểm tra lội suối ở Đảo Bến trên Chromium 1280×720. Giữ D đến giữa suối và dừng. Mây hạ dần khoảng 0,56 m ở lớp hiển thị trong khi tọa độ Y mô phỏng vẫn bằng 0. Tiếp tục đi sang bờ, Mây nổi dần lên lại. Fixture JSONL bình minh vẫn khớp từng byte với tag.

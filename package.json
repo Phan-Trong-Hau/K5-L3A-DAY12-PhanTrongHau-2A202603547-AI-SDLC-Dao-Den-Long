@@ -1,10 +1,10 @@
 {
   "name": "dao-den-long",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/run.js",
     "build": "vite build",
     "test": "node --test",
     "demo:headless": "node demo/phase0/headless.js"

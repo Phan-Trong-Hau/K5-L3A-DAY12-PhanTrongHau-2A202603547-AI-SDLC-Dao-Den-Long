@@ -1,0 +1,139 @@
+
+> dao-den-long@1.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: Bảng xếp hạng lọc tên sai, giữ top 10 và ưu tiên người đạt trước khi bằng điểm
+ok 1 - Bảng xếp hạng lọc tên sai, giữ top 10 và ưu tiên người đạt trước khi bằng điểm
+  ---
+  duration_ms: 1.928494
+  ...
+# Subtest: Đêm 1 có đủ năm đèn và tài nguyên
+ok 2 - Đêm 1 có đủ năm đèn và tài nguyên
+  ---
+  duration_ms: 1.714726
+  ...
+# Subtest: nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn rồi thắng khi tới bình minh
+ok 3 - nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn rồi thắng khi tới bình minh
+  ---
+  duration_ms: 2.471635
+  ...
+# Subtest: xung sáng tiêu hao đom đóm, đẩy và làm choáng Bóng Mực
+ok 4 - xung sáng tiêu hao đom đóm, đẩy và làm choáng Bóng Mực
+  ---
+  duration_ms: 3.474522
+  ...
+# Subtest: đèn sáng che chở Mây, hết lửa hoặc hết giờ thì thua
+ok 5 - đèn sáng che chở Mây, hết lửa hoặc hết giờ thì thua
+  ---
+  duration_ms: 1.284765
+  ...
+# Subtest: CLI v1.2 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi
+ok 6 - CLI v1.2 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi
+  ---
+  duration_ms: 128.350043
+  ...
+# Subtest: Hồi quy CLI v1.2 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON
+ok 7 - Hồi quy CLI v1.2 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON
+  ---
+  duration_ms: 56.237757
+  ...
+# Subtest: Hồi quy CLI v1.2 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse
+ok 8 - Hồi quy CLI v1.2 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse
+  ---
+  duration_ms: 54.618151
+  ...
+# Subtest: Contract v1.2 ghi dầu, sức chứa, tắt/thắp lại, châm vào đèn và thắng ở bình minh
+ok 9 - Contract v1.2 ghi dầu, sức chứa, tắt/thắp lại, châm vào đèn và thắng ở bình minh
+  ---
+  duration_ms: 32.882331
+  ...
+# Subtest: Lướt 12 tick theo hướng đã chốt, giữ cao độ và có hồi chiêu
+ok 10 - Lướt 12 tick theo hướng đã chốt, giữ cao độ và có hồi chiêu
+  ---
+  duration_ms: 5.17217
+  ...
+# Subtest: Pause giữ nguyên đồng hồ và các bộ đếm cho đến resume
+ok 11 - Pause giữ nguyên đồng hồ và các bộ đếm cho đến resume
+  ---
+  duration_ms: 1.891908
+  ...
+# Subtest: Rơi tốn một lửa, bỏ qua miễn nhiễm và hồi sinh đúng sau 60 tick
+ok 12 - Rơi tốn một lửa, bỏ qua miễn nhiễm và hồi sinh đúng sau 60 tick
+  ---
+  duration_ms: 0.714347
+  ...
+# Subtest: Cầu tre và bục nhảy Đảo Cau tới đảo bên phải
+ok 13 - Cầu tre và bục nhảy Đảo Cau tới đảo bên phải
+  ---
+  duration_ms: 3.328371
+  ...
+# Subtest: Đảo Chuông lên tầng giữa qua dốc, lên tầng trên qua bục và có gió theo lịch
+ok 14 - Đảo Chuông lên tầng giữa qua dốc, lên tầng trên qua bục và có gió theo lịch
+  ---
+  duration_ms: 24.201565
+  ...
+# Subtest: Gió Lạc cướp trước Bóng Mực và thả đồ khi trúng Tỏa Sáng
+ok 15 - Gió Lạc cướp trước Bóng Mực và thả đồ khi trúng Tỏa Sáng
+  ---
+  duration_ms: 3.146277
+  ...
+# Subtest: Bùa Gió đặt trên cầu, đổi tốc độ, bỏ hồi chiêu và hồi lại đúng lịch
+ok 16 - Bùa Gió đặt trên cầu, đổi tốc độ, bỏ hồi chiêu và hồi lại đúng lịch
+  ---
+  duration_ms: 23.844302
+  ...
+# Subtest: Lịch sinh và vùng an toàn đúng mốc
+ok 17 - Lịch sinh và vùng an toàn đúng mốc
+  ---
+  duration_ms: 16.785859
+  ...
+# Subtest: Nạp đèn chấm điểm và thắng tại tick hết giờ khi vẫn còn lửa
+ok 18 - Nạp đèn chấm điểm và thắng tại tick hết giờ khi vẫn còn lửa
+  ---
+  duration_ms: 0.794981
+  ...
+# Subtest: Dầu cạn đúng tick, đặt sẵn không tăng sức chứa, thắp lại tốn năm và cộng 40 điểm
+ok 19 - Dầu cạn đúng tick, đặt sẵn không tăng sức chứa, thắp lại tốn năm và cộng 40 điểm
+  ---
+  duration_ms: 4.548875
+  ...
+# Subtest: Châm dầu chọn đèn gần nhất có thể nhận, làm tròn số đom đóm lên và giới hạn 100
+ok 20 - Châm dầu chọn đèn gần nhất có thể nhận, làm tròn số đom đóm lên và giới hạn 100
+  ---
+  duration_ms: 0.483764
+  ...
+# Subtest: Sức chứa lấy theo số lần thắp, có trần 20 và áp dụng cho nhặt tự động
+ok 21 - Sức chứa lấy theo số lần thắp, có trần 20 và áp dụng cho nhặt tự động
+  ---
+  duration_ms: 0.480266
+  ...
+# Subtest: Hai Bóng Mực hút cộng dồn, báo lần đầu sau 60 tick hút và dừng khi Mây tiến vào
+ok 22 - Hai Bóng Mực hút cộng dồn, báo lần đầu sau 60 tick hút và dừng khi Mây tiến vào
+  ---
+  duration_ms: 11.988678
+  ...
+# Subtest: Tỏa sáng ngắt hút và cộng 15 điểm cho Bóng đang hút, 5 cho Bóng khác
+ok 23 - Tỏa sáng ngắt hút và cộng 15 điểm cho Bóng đang hút, 5 cho Bóng khác
+  ---
+  duration_ms: 2.435913
+  ...
+# Subtest: Châm dầu đúng 30 khôi phục an toàn và đẩy Bóng Mực sát bờ L6 ra mép trong 30 tick
+ok 24 - Châm dầu đúng 30 khôi phục an toàn và đẩy Bóng Mực sát bờ L6 ra mép trong 30 tick
+  ---
+  duration_ms: 2.712435
+  ...
+# Subtest: Bình minh dùng ngưỡng 3/5, 4/6, 5/7 và bỏ qua đèn vừa tắt hoặc khi hết lửa
+ok 25 - Bình minh dùng ngưỡng 3/5, 4/6, 5/7 và bỏ qua đèn vừa tắt hoặc khi hết lửa
+  ---
+  duration_ms: 1.605484
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 215.525074
