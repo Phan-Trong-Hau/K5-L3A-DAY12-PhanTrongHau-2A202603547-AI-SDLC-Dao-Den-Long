@@ -1,0 +1,94 @@
+
+> dao-den-long@0.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: Đêm 1 có đủ năm đèn và tài nguyên
+ok 1 - Đêm 1 có đủ năm đèn và tài nguyên
+  ---
+  duration_ms: 2.727281
+  ...
+# Subtest: nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn và thắng
+ok 2 - nhảy, gom đom đóm ở biên bán kính, nạp đủ năm đèn và thắng
+  ---
+  duration_ms: 2.695374
+  ...
+# Subtest: xung sáng tiêu hao đom đóm, đẩy và làm choáng Bóng Mực
+ok 3 - xung sáng tiêu hao đom đóm, đẩy và làm choáng Bóng Mực
+  ---
+  duration_ms: 4.251318
+  ...
+# Subtest: đèn sáng che chở Mây, hết lửa hoặc hết giờ thì thua
+ok 4 - đèn sáng che chở Mây, hết lửa hoặc hết giờ thì thua
+  ---
+  duration_ms: 0.768525
+  ...
+# Subtest: CLI v1.1 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi
+ok 5 - CLI v1.1 ghi snapshot, áp dụng yaw và input giữ nguyên, chạy tất định và báo input lỗi
+  ---
+  duration_ms: 219.113748
+  ...
+# Subtest: Contract v1.1 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON
+ok 6 - Contract v1.1 nhận Đêm 2, Bùa Gió, lướt và pause từ JSON
+  ---
+  duration_ms: 59.184475
+  ...
+# Subtest: Contract v1.1 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse
+ok 7 - Contract v1.1 nhận Đêm 3, Gió Lạc được gieo từ scenario và thả đồ khi pulse
+  ---
+  duration_ms: 82.674236
+  ...
+# Subtest: Lướt 12 tick theo hướng đã chốt, giữ cao độ và có hồi chiêu
+ok 8 - Lướt 12 tick theo hướng đã chốt, giữ cao độ và có hồi chiêu
+  ---
+  duration_ms: 5.256941
+  ...
+# Subtest: Pause giữ nguyên đồng hồ và các bộ đếm cho đến resume
+ok 9 - Pause giữ nguyên đồng hồ và các bộ đếm cho đến resume
+  ---
+  duration_ms: 1.29834
+  ...
+# Subtest: Rơi tốn một lửa, bỏ qua miễn nhiễm và hồi sinh đúng sau 60 tick
+ok 10 - Rơi tốn một lửa, bỏ qua miễn nhiễm và hồi sinh đúng sau 60 tick
+  ---
+  duration_ms: 2.377956
+  ...
+# Subtest: Cầu tre và bục nhảy Đảo Cau tới đảo bên phải
+ok 11 - Cầu tre và bục nhảy Đảo Cau tới đảo bên phải
+  ---
+  duration_ms: 3.415274
+  ...
+# Subtest: Đảo Chuông lên tầng giữa qua dốc, lên tầng trên qua bục và có gió theo lịch
+ok 12 - Đảo Chuông lên tầng giữa qua dốc, lên tầng trên qua bục và có gió theo lịch
+  ---
+  duration_ms: 46.862111
+  ...
+# Subtest: Gió Lạc cướp trước Bóng Mực và thả đồ khi trúng Tỏa Sáng
+ok 13 - Gió Lạc cướp trước Bóng Mực và thả đồ khi trúng Tỏa Sáng
+  ---
+  duration_ms: 2.888048
+  ...
+# Subtest: Bùa Gió đặt trên cầu, đổi tốc độ, bỏ hồi chiêu và hồi lại đúng lịch
+ok 14 - Bùa Gió đặt trên cầu, đổi tốc độ, bỏ hồi chiêu và hồi lại đúng lịch
+  ---
+  duration_ms: 26.043449
+  ...
+# Subtest: Lịch sinh và vùng an toàn đúng mốc
+ok 15 - Lịch sinh và vùng an toàn đúng mốc
+  ---
+  duration_ms: 27.653936
+  ...
+# Subtest: Nạp đèn chấm điểm và thắng tại tick hết giờ khi vẫn còn lửa
+ok 16 - Nạp đèn chấm điểm và thắng tại tick hết giờ khi vẫn còn lửa
+  ---
+  duration_ms: 1.148521
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 333.819883

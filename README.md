@@ -5,6 +5,37 @@
 
 ---
 
+## Chạy bản web
+
+Cần Node.js 22.14.0 trở lên. Từ thư mục gốc repo, chạy:
+
+```bash
+npm ci
+npm run dev
+```
+
+Mở địa chỉ Vite in trong terminal. Bấm **Bắt đầu** để chơi lần lượt Đảo Bến, Đảo Cau và Đảo Chuông. Nhặt đom đóm và thắp hết đèn trước khi hết giờ hoặc hết lửa.
+
+- **WASD / phím mũi tên hoặc chuột phải** để đi, **Space** để nhảy và **Shift** để lướt.
+- **E** để nạp đèn. **Q hoặc nhấp chuột trái** để tỏa sáng, tốn ba đom đóm. **Kéo chuột trái** để xoay camera, cuộn chuột để zoom.
+- **Esc/P** để tạm dừng. Menu có Cài đặt, Chơi lại Đêm và Về menu.
+- Nạp mỗi đom đóm được 10 điểm, thắp đèn được 100 điểm và làm choáng Bóng Mực bằng Tỏa Sáng được 5 điểm/con. Khi thắng, cộng 2 điểm mỗi giây nguyên còn lại và 50 điểm mỗi lửa còn lại. Tổng điểm Bình Minh tính các đêm đã thắng.
+
+### Headless v1.1
+
+[game.contract.json](game.contract.json) công bố lệnh và tuning cho ba đêm. Để chạy kiểm tra và tạo JSONL:
+
+```bash
+npm test
+node src/headless.js --seed 7 --night 3 --ticks 21600 --out /tmp/dao-den-long.jsonl
+```
+
+Nhận `--night 1|2|3`, `--scenario <file.json>`, `--inputs <file.json>` và `--snapshot-every <int>`. Xem [tiêu chí nghiệm thu](docs/notes/phase-2.md) và [bằng chứng Phase 2](docs/proof/phase-2/README.md).
+
+### Sáng tạo của tôi
+
+Mây là chú heo đen hồng đội nón lá, mặc áo màu ngà và mang đèn lồng nhỏ. Đảo Bến có dấu chân, rừng, suối, chim, rắn và ếch ở lớp cảnh quan. Bản web và headless cùng dùng bản đồ chuẩn và cùng logic gameplay. Kết quả chạy lặp JSONL ở bằng chứng Phase 2.
+
 ## Tài liệu của lab
 
 | File | Nội dung |
