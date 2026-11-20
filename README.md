@@ -5,6 +5,32 @@
 
 ---
 
+## Chơi Đêm 1 — Đảo Bến
+
+Cần Node.js 22.14.0 trở lên. Chạy từ gốc repo:
+
+```bash
+npm ci
+npm run dev
+```
+
+Mở địa chỉ Vite và bấm **Bắt đầu**. Gom đom đóm, thắp năm đèn và tránh Bóng Mực. Dùng WASD hoặc chuột phải để đi, Space để nhảy, E để nạp đèn, Q hoặc nhấp trái để Tỏa Sáng. Kéo chuột trái để xoay camera và cuộn để zoom. Tỏa Sáng tốn 2 đom đóm. Hết giờ hoặc hết lửa thì thua. Sau thắng/thua có nút Chơi lại.
+
+Nhặt mỗi đom đóm được 10 điểm, thắp đèn được 100 điểm và làm choáng một Bóng Mực được 20 điểm. Khi thắng cộng 1 điểm mỗi giây nguyên còn lại và 25 điểm mỗi lửa còn lại. Mép đảo giới hạn di chuyển, khi bị chạm không đánh rơi đom đóm.
+
+## Kiểm tra Phase 1
+
+```bash
+npm test
+node src/headless.js --seed 7 --night 1 --ticks 120 --out /tmp/dao-dem1.jsonl
+```
+
+[Contract v1.0](game.contract.json) nhận thêm `--scenario`, `--inputs` và `--snapshot-every`. Xem [yêu cầu](Phase1.md) và [bằng chứng](docs/proof/phase-1/README.md).
+
+## Sáng tạo của tôi
+
+Mây là chú heo đen hồng đội nón lá và mang đèn lồng. Bản web có dấu chân, rừng, suối và động vật cảnh quan. Chi tiết hiển thị không đi vào mô phỏng headless.
+
 ## Tài liệu của lab
 
 | File | Nội dung |
