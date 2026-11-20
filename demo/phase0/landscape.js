@@ -1,8 +1,12 @@
 import * as THREE from 'three'
 import { addStream, addWildlife, streamCenter, waterImmersion } from './wildlife.js'
+import { createTerrainDent, stompRadius } from './terrain-dent.js'
+import { createSceneryCollision } from './scenery-collision.js'
+import { addGrass } from './grass.js'
 import { maps, surfaces } from '../../src/maps.js'
 
 const grass = '#2F5D50'
+const lawn = '#336356'
 const sand = '#C9B48A'
 const wood = '#6B4A2F'
 const treeColors = ['#516c78', '#74577a', '#496d5d']
@@ -32,6 +36,8 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
   scenery.add(terrain)
   scene.add(scenery)
   const map = maps[night]
+  const solidProps = []
+  const dent = benchmark ? null : createTerrainDent(scenery, grass, lawn)
   let seed = 7124 + night
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
@@ -41,7 +47,9 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
   function mesh(root, geometry, color, x, y, z, emissive = 0x000000) {
     const key = `${color}:${emissive}`
     if (!materials.has(key)) {
-      materials.set(key, new THREE.MeshLambertMaterial({ color, emissive }))
+      const material = new THREE.MeshLambertMaterial({ color, emissive })
+      if ([grass, lawn, sand, wood].includes(color)) dent?.cutSurface(material)
+      materials.set(key, material)
     }
     const view = new THREE.Mesh(geometry, materials.get(key))
     view.position.set(x, y, z)
@@ -52,7 +60,7 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
   function island(center) {
     mesh(scenery, new THREE.CylinderGeometry(map.radius, map.radius - 7, 6, 80), wood, center, -3.04, 0)
     mesh(terrain, new THREE.CylinderGeometry(map.radius, map.radius, 0.08, 128), grass, center, -0.04, 0)
-    mesh(scenery, new THREE.CylinderGeometry(5, 5, 0.025, 40), sand, center, -0.006, 0)
+    mesh(scenery, new THREE.CylinderGeometry(5, 5, 0.025, 40), benchmark ? sand : lawn, center, -0.006, 0)
   }
   map.centers.forEach(island)
   mesh(scenery, new THREE.CylinderGeometry(225, 225, 1, 64), '#12384A', 0, -13, 0)
@@ -103,7 +111,7 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
     scenery.add(group)
     return {
       ...habitat, group, cosine: Math.cos(habitat.angle), sine: Math.sin(habitat.angle),
-      stream: addStream(group, habitat.radius), animals: addWildlife(group, night, habitat.radius),
+      stream: addStream(group, habitat.radius), wildlife: addWildlife(group, night, habitat.radius),
     }
   })
 
@@ -129,7 +137,9 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
       if (levels.some(level => level.ramp) || nearMapFeature(x, z) ||
           habitats.some(habitat => nearStream(habitat, x, z))) continue
       const size = 0.18 + random() * 0.45
-      stone.position.set(x, Math.max(...levels.map(level => level.y)) + size * 0.17, z)
+      const base = Math.max(...levels.map(level => level.y))
+      stone.position.set(x, base + size * 0.17, z)
+      solidProps.push({ x, z, base, radius: size * 0.86, top: base + size * 0.56, canStand: true })
       stone.rotation.set(0, random() * Math.PI, 0)
       stone.scale.set(size, size * 0.45, size * 0.8)
       stone.updateMatrix()
@@ -161,6 +171,7 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
       root.position.set(x, 0, z)
       scenery.add(root)
       trees.push({ root, foliage, height })
+      if (!benchmark) solidProps.push({ x, z, base: 0, radius: 0.34, top: height })
       mesh(foliage, trunk, wood, 0, height / 2, 0).scale.y = height
       const type = index % 3
       if (type === 0) {
@@ -202,6 +213,13 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
     batch.mesh.frustumCulled = false
     scenery.add(batch.mesh)
   }
+  if (!benchmark) {
+    addGrass(scenery, night, map, (x, z) =>
+      nearMapFeature(x, z) ||
+      habitats.some(habitat => nearStream(habitat, x, z)) ||
+      solidProps.some(prop => Math.hypot(x - prop.x, z - prop.z) < prop.radius + 0.1),
+    material => dent.cutSurface(material, 0.41))
+  }
   const hideTree = new THREE.Matrix4().makeScale(0, 0, 0)
 
   const leafMaterial = new THREE.MeshBasicMaterial({ color: '#b7b286', side: THREE.DoubleSide })
@@ -209,8 +227,42 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
   scenery.add(leafMesh)
   leafMesh.frustumCulled = false
   const leaf = new THREE.Object3D()
+  const animalPosition = new THREE.Vector3()
   return {
     terrain,
+    nearbyAnimal(player, reach) {
+      let nearest
+      let range = reach
+      for (const habitat of habitats) {
+        if (!habitat.group.visible) continue
+        for (const animal of habitat.wildlife.animals) {
+          if (animal.away) continue
+          habitat.group.localToWorld(animalPosition.copy(animal.root.position))
+          const distance = Math.hypot(animalPosition.x - player.x, animalPosition.z - player.z)
+          if (distance >= range || Math.abs(animalPosition.y - player.y) > 1.25) continue
+          nearest = animal
+          range = distance
+        }
+      }
+      return nearest
+    },
+    collision: benchmark ? undefined : createSceneryCollision(solidProps),
+    strikeGround({ x, y, z, grounded }, tick, reducedMotion) {
+      if (!dent || !grounded || this.immersionAt({ x, y, z, grounded }) > 0) return
+      const center = map.centers.find(cx => Math.hypot(x - cx, z) < map.radius - 1.1)
+      if (center === undefined || !surfaces(night, x, z).some(surface => !surface.ramp && surface.y === y)) return
+      let size = Math.min(stompRadius, map.radius - Math.hypot(x - center, z) - 0.03)
+      if (night === 3) {
+        const radial = Math.hypot(x, z)
+        if (y === 3) size = Math.min(size, radial - 12, 24 - radial, z)
+        if (y === 6) size = Math.min(size, 8 - radial, radial - 2)
+      }
+      if (size < 1.1) return
+      dent.start(x, y, z, center, size, tick, reducedMotion)
+    },
+    updateDent(tick) {
+      dent?.update(tick)
+    },
     immersionAt({ x, y, z, grounded }) {
       if (!grounded || Math.abs(y) > 0.15) return 0
       return Math.max(0, ...habitats.map(habitat => {
@@ -223,7 +275,7 @@ export function createLandscape(scene, night, { benchmark = false } = {}) {
         habitat.group.visible = Math.hypot(camera.position.x - habitat.x, camera.position.z - habitat.z) < 68
         if (!habitat.group.visible) continue
         habitat.stream(seconds)
-        habitat.animals(seconds)
+        habitat.wildlife.animate(seconds)
       }
       const dx = camera.position.x - player.x
       const dz = camera.position.z - player.z

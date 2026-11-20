@@ -7,3 +7,4 @@
 - Vị trí và tuning trong ticket có ưu tiên cao hơn giả định trước. Cập nhật kiểm thử bị thay thế và ghi lý do trong ghi chú phase.
 - Khi test đỏ, xác định nguyên nhân trước khi đánh dấu đạt. Lưu lệnh, mã thoát và đầu ra thật cho bằng chứng. Chỉ ghi test ẩn là đã chạy khi có kết quả từ hệ chấm.
 - Dùng lệnh benchmark và soak trong README để tạo số liệu thật. Không sửa tay JSON đo và không cho hiệu ứng sáng tạo tham gia benchmark.
+- Chạy `npm run verify` trước khi phát hành. CI dùng cùng lệnh để chặn build, test hoặc soak không đạt.

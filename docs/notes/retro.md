@@ -21,6 +21,19 @@ AI cũng có lúc đề xuất cơ chế riêng khi người học muốn bám �
 
 Phiên làm bài không có đồng hồ token xác nhận. Ước tính rất thô theo số lượt code, kết quả công cụ và các đoạn tài liệu đã đọc là khoảng 100.000–220.000 token cho cả bốn phase. Con số gồm cả ngữ cảnh lặp, nên không đủ căn cứ quy đổi sang tiền hoặc coi là số tính phí. Giảm sử dụng bằng cách chỉ đọc ticket của phase hiện tại, dùng fixture ngắn, so JSONL thay vì dán toàn bộ log và gom kiểm tra bằng `npm test`.
 
+Phân bổ thô theo khối lượng trao đổi, mã và đầu ra từng phase:
+
+| Phase | Khoảng token ước tính | Cách tiết kiệm |
+|---|---:|---|
+| 1 | 8.000–20.000 | Khoanh PRD-0 và chạy fixture nhỏ thay vì chạy đủ đêm mỗi lần. |
+| 2 | 25.000–50.000 | Chia bản đồ, nhân vật và schema; dùng test ngắn cho các mốc sinh thực thể. |
+| 3 | 25.000–55.000 | Dùng chung fixture, so JSONL và chỉ đọc phần luật được thay thế. |
+| 4, gồm bản làm lại | 42.000–95.000 | Gộp test, build và kiểm soak trong một lệnh, giữ log đo là file. |
+
+Các khoảng cộng lại khớp khoảng tổng ở trên. Đây là ước lượng theo độ dài và số vòng làm việc, không phải số đo từ nền tảng.
+
+Khi rà lại Phase 4, kết quả RSS trên tag v1.0.0 vượt ngưỡng ở sáu lượt dù không crash. Bản làm lại dùng chế độ thông dịch cho tiến trình soak, vẫn chạy đúng seed, cùng mô phỏng và đủ 10 đêm; không thêm lượt chạy khởi động trước mốc lấy RSS. Đo lại nhiều lượt và thêm gate tự động để phát hiện tụt chuẩn về sau.
+
 ## Nếu làm lại
 
 Gắn tag ngay sau mỗi phase đã kiểm thay vì chờ sang phase sau. Viết fixture cho biên bản đồ, tầng chồng nhau, nhiều Bóng Mực và tick cuối sớm hơn. Tách công cụ đo khỏi giai đoạn trau chuốt, lưu cách đo và phiên bản renderer ngay lần đầu. Đối chiếu thay đổi luật với ticket trước khi triển khai ý tưởng bổ sung.

@@ -112,7 +112,7 @@ export function addWildlife(scene, night, radius) {
       return part(poses, sphere, segment % 4 === 2 ? markings : scales, 0, 0, 0, size, size * 0.65, size * 1.25)
     })
     for (const side of [-1, 1]) part(segments[0], sphere, eye, side * 0.60, 0.57, -0.54, 0.19)
-    return { segments, offset: index * 2.7 }
+    return { segments, root: segments[0], kind: 'snake', away: false, offset: index * 2.7 }
   })
 
   const frogViews = [-1, 1, 2].map((index, order) => {
@@ -125,7 +125,7 @@ export function addWildlife(scene, night, radius) {
       part(frog, sphere, frogs, side * 0.16, 0.32, -0.14, 0.115)
       part(frog, sphere, eye, side * 0.16, 0.34, -0.24, 0.048)
     }
-    return { frog, anchor: index * 6 - 2, order }
+    return { frog, root: frog, kind: 'frog', away: false, anchor: index * 6 - 2, order }
   })
 
   const turtles = []
@@ -148,7 +148,7 @@ export function addWildlife(scene, night, radius) {
     scene.add(batch.mesh)
   }
 
-  return seconds => {
+  function animate(seconds) {
     for (const { bird, wings, phase, ring } of birds) {
       const angle = seconds * 0.28 + phase + ring * 0.2
       bird.position.set(Math.cos(angle) * ring, 8.5 + ring * 0.10 + Math.sin(angle * 3) * 0.7, Math.sin(angle) * ring)
@@ -157,7 +157,7 @@ export function addWildlife(scene, night, radius) {
       wings[1].rotation.z = -wings[0].rotation.z
     }
 
-    for (const { segments, offset } of snakes) {
+    for (const { segments, offset, away } of snakes) {
       for (const [index, segment] of segments.entries()) {
         const t = seconds * 0.72 + offset - index * (0.085 - index * 0.0015)
         const z = Math.sin(t * 0.58) * 5 - 9 + offset * 7
@@ -165,12 +165,12 @@ export function addWildlife(scene, night, radius) {
         const sway = Math.sin(t * 6.2 - index * 0.26) * 0.23
         const surfaceDepth = waterImmersion(x + sway, z, radius)
         const height = index === 0 ? 0.26 : 0.13
-        segment.position.set(x + sway, height - (height - 0.06) * surfaceDepth, z)
+        segment.position.set(x + sway, away ? -100 : height - (height - 0.06) * surfaceDepth, z)
         segment.rotation.y = Math.atan2(Math.sin(t * 0.82), -Math.cos(t * 0.58))
       }
     }
 
-    for (const { frog, anchor, order } of frogViews) {
+    for (const { frog, anchor, order, away } of frogViews) {
       const cycle = (seconds + order * 0.87) / 2.8
       const step = Math.floor(cycle)
       const hop = Math.min(1, (cycle - step) * 2.8 / 0.75)
@@ -180,7 +180,7 @@ export function addWildlife(scene, night, radius) {
       const route = (step + hop) * 0.56 + order * 0.75
       const x = streamCenter(z) - 2.7 * Math.cos(route)
       const leap = Math.sin(hop * Math.PI)
-      frog.position.set(x, leap * 0.48 - 0.16 * waterImmersion(x, z, radius) * (1 - leap), z)
+      frog.position.set(x, away ? -100 : leap * 0.48 - 0.16 * waterImmersion(x, z, radius) * (1 - leap), z)
       frog.rotation.y = Math.sin(route) > 0 ? -Math.PI / 2 : Math.PI / 2
     }
     for (const { turtle, legs, anchor } of turtles) {
@@ -197,4 +197,5 @@ export function addWildlife(scene, night, radius) {
       batch.mesh.instanceMatrix.needsUpdate = true
     }
   }
+  return { animate, animals: [...snakes, ...frogViews] }
 }

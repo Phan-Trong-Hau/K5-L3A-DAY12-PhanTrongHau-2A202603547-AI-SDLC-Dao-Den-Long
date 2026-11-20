@@ -4,11 +4,17 @@ export const rate = 60
 export const dt = 1 / rate
 const tolerance = 0.000001
 
-function onFloor(night, player) {
-  return surfaces(night, player.x, player.z).some(surface => Math.abs(surface.y - player.y) < tolerance)
+function floorLevels(night, x, z, collision) {
+  const levels = surfaces(night, x, z)
+  if (collision) levels.push(...collision.floorsAt(x, z))
+  return levels
 }
 
-export function movePlayer(game, input, tuning, emit) {
+function onFloor(levels, player) {
+  return levels.some(surface => Math.abs(surface.y - player.y) < tolerance)
+}
+
+export function movePlayer(game, input, tuning, emit, collision) {
   const { player, night, map, simTick } = game
   const inputLength = Math.hypot(input.x, input.z)
   if (inputLength > 0) {
@@ -52,8 +58,9 @@ export function movePlayer(game, input, tuning, emit) {
   }
 
   const previousY = player.y
-  const nextX = player.x + player.vx * dt
-  const nextZ = player.z + player.vz * dt
+  const proposedX = player.x + player.vx * dt
+  const proposedZ = player.z + player.vz * dt
+  const { x: nextX, z: nextZ } = collision?.slide(player, proposedX, proposedZ) ?? { x: proposedX, z: proposedZ }
   const levels = surfaces(night, nextX, nextZ)
   const previousLevels = surfaces(night, player.x, player.z)
   const risingRamp = player.grounded && levels.some(level => level.ramp && Math.abs(level.y - previousY) <= 0.25)
@@ -66,11 +73,16 @@ export function movePlayer(game, input, tuning, emit) {
     player.vx = 0
     player.vz = 0
   } else {
+    if (proposedX !== nextX || proposedZ !== nextZ) {
+      player.vx = (nextX - player.x) / dt
+      player.vz = (nextZ - player.z) / dt
+    }
     player.x = nextX
     player.z = nextZ
   }
 
-  const currentLevels = tower || wall ? previousLevels : levels
+  const currentLevels = collision ? floorLevels(night, player.x, player.z, collision)
+    : tower || wall ? previousLevels : levels
   const ramp = player.grounded
     ? currentLevels.find(level => level.ramp && Math.abs(level.y - previousY) <= 0.25)
     : null
@@ -78,7 +90,7 @@ export function movePlayer(game, input, tuning, emit) {
     player.y = ramp.y
     player.vy = 0
   } else if (!(dashing && player.frozenDash)) {
-    if (!player.grounded || !onFloor(night, player)) {
+    if (!player.grounded || !onFloor(currentLevels, player)) {
       player.vy -= 20 * dt
       player.y += player.vy * dt
       const floor = currentLevels
@@ -91,7 +103,7 @@ export function movePlayer(game, input, tuning, emit) {
     }
   }
 
-  player.grounded = onFloor(night, player) && player.vy <= 0
+  player.grounded = onFloor(currentLevels, player) && player.vy <= 0
   if (!player.grounded) return
   player.launch = null
   const pad = map.pads.find(candidate => Math.abs(candidate.y - player.y) < tolerance &&

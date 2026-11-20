@@ -1,13 +1,14 @@
 {
   "name": "dao-den-long",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node scripts/run.js",
     "build": "vite build",
     "test": "node --test",
-    "demo:headless": "node demo/phase0/headless.js"
+    "demo:headless": "node demo/phase0/headless.js",
+    "verify": "node scripts/verify.js"
   },
   "dependencies": {
     "three": "0.187.0"

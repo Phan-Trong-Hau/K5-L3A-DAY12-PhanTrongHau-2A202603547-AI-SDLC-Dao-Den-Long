@@ -57,6 +57,14 @@ function advanceForce(game, shade, force, tuning) {
   else force.ticks--
 }
 
+export function stunShade(shade, until) {
+  shade.state = 'stunned'
+  shade.lanternId = undefined
+  shade.drainTicks = 0
+  shade.stateUntil = until
+  shade.push = null
+}
+
 export function applyPulse(game, tuning, emit) {
   const { player, simTick } = game
   if (player.carried < tuning.pulse_cost || player.pulseReady > simTick) return
@@ -66,10 +74,7 @@ export function applyPulse(game, tuning, emit) {
   for (const shade of game.shades) {
     if (!withinPulse(player, shade, tuning.pulse_radius)) continue
     const draining = shade.state === 'drain'
-    shade.state = 'stunned'
-    shade.lanternId = undefined
-    shade.drainTicks = 0
-    shade.stateUntil = simTick + Math.round(tuning.pulse_stun_s * 60)
+    stunShade(shade, simTick + Math.round(tuning.pulse_stun_s * 60))
     forceShade(shade, player, 15, tuning.pulse_push_m)
     game.score += draining ? tuning.score.per_drain_stun : tuning.score.per_stun
     stunned_ids.push(shade.id)

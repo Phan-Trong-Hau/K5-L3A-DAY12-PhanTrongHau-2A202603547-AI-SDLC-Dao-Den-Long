@@ -51,5 +51,5 @@
     "capacity_max": 20
   },
   "bench_cmd": "node scripts/bench.js",
-  "soak_cmd": "node --expose-gc scripts/soak.js"
+  "soak_cmd": "node --jitless --expose-gc scripts/soak.js"
 }

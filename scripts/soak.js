@@ -8,7 +8,7 @@ const { values } = parseArgs({ options: {
 const seed = Number(values.seed)
 const nights = Number(values.nights)
 if (!Number.isSafeInteger(seed) || !Number.isSafeInteger(nights) || nights < 1 || !values.out) {
-  console.error('Usage: node --expose-gc scripts/soak.js --seed 7 --nights 10 --out soak.json')
+  console.error('Usage: node --jitless --expose-gc scripts/soak.js --seed 7 --nights 10 --out soak.json')
   process.exit(2)
 }
 function memory() {

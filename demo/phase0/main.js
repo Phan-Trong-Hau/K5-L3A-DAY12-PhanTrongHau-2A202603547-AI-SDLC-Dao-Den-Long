@@ -6,6 +6,7 @@ import { addScore, downloadScores, getScores } from './local-scores.js'
 import { validName } from '../../src/leaderboard.js'
 import { createAudio } from './audio.js'
 import { createDashPuffEffect } from './dash-puff.js'
+import { createPracticeAnimals } from './practice-animals.js'
 import { fuelOf, lightCost, lowFuel, nearestLantern } from '../../src/lanterns.js'
 
 const scene = new THREE.Scene()
@@ -17,6 +18,7 @@ renderer.setPixelRatio(1)
 document.body.append(renderer.domElement)
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 260)
+const welcomeLight = new THREE.PointLight('#ffca91', 52, 19)
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight)
   camera.aspect = window.innerWidth / window.innerHeight
@@ -130,15 +132,8 @@ mesh(player, new THREE.ConeGeometry(0.54, 0.28, 18), '#e3ba71', 0, 1.35, -0.44)
 mesh(player, new THREE.CylinderGeometry(0.021, 0.021, 0.29, 6), '#b99769', 0.44, 1.10, -0.43)
 mesh(player, new THREE.SphereGeometry(0.13, 10, 8), '#ffb458', 0.44, 0.94, -0.43, '#e67719')
 
-const pulseView = new THREE.Mesh(
-  new THREE.RingGeometry(0.94, 1, 64),
-  new THREE.MeshBasicMaterial({ color: '#ffcb72', transparent: true, side: THREE.DoubleSide, depthWrite: false }),
-)
-pulseView.rotation.x = -Math.PI / 2
-pulseView.visible = false
-scene.add(pulseView)
 const stompImpact = 6
-const pulseLife = 26
+const markLife = 16
 const hoofGlowGeometry = new THREE.CircleGeometry(1, 16)
 const hoofGlowMaterial = new THREE.MeshBasicMaterial({
   color: '#ff9fcb', transparent: true, depthWrite: false, side: THREE.DoubleSide,
@@ -156,6 +151,7 @@ for (const foot of [-1, 1]) {
 }
 scene.add(stompMarks)
 let stompAt = -Infinity
+let groundStrike
 let yaw = 0
 let zoom = 1
 let pointerStart = null
@@ -187,6 +183,7 @@ const hoofPosition = new THREE.Vector3()
 
 const audio = createAudio()
 const dashPuffs = createDashPuffEffect(scene)
+const practiceAnimals = createPracticeAnimals(scene)
 const defaults = { volume: 0.55, sensitivity: 1, accessiblePalette: false, reducedMotion: false, largeText: false }
 const defaultKeys = {
   up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', jump: 'Space',
@@ -284,6 +281,7 @@ let game
 let landscape
 let landscapeNight
 let campaignSeed = Date.now()
+let practice = false
 let nightsWon = 0
 let spawnNotice
 let accumulatedTime = 0
@@ -370,6 +368,7 @@ function clearViews(views, dispose = () => {}) {
 }
 
 function loadNight(nextNight) {
+  practiceAnimals.reset()
   night = nextNight
   game = createGame(campaignSeed + night - 1, {}, night)
   spawnNotice = undefined
@@ -396,7 +395,8 @@ function loadNight(nextNight) {
   cameraHeight = game.player.y
   playerImmersion = 0
   stompAt = -Infinity
-  pulseView.visible = stompMarks.visible = false
+  groundStrike = undefined
+  stompMarks.visible = false
   dashPuffs.clear()
   stride = strideMark = printIndex = 0
   for (const print of prints) print.visible = false
@@ -404,6 +404,8 @@ function loadNight(nextNight) {
 
 function show(next, heading, text, actions = []) {
   screen = next
+  overlay.dataset.screen = next
+  byId('welcome-emblem').hidden = !['menu', 'intro', 'map-select'].includes(next)
   bindingAction = undefined
   bindingMessage.textContent = ''
   content.replaceChildren()
@@ -423,12 +425,63 @@ function show(next, heading, text, actions = []) {
     return button
   }))
 }
+function welcomeDetails(items) {
+  const details = document.createElement('dl')
+  details.className = 'welcome-details'
+  for (const [label, value] of items) {
+    const group = document.createElement('div')
+    const term = document.createElement('dt')
+    const definition = document.createElement('dd')
+    term.textContent = label
+    definition.textContent = value
+    group.append(term, definition)
+    details.append(group)
+  }
+  content.append(details)
+}
+
 function menu() {
   show('menu', 'Đảo Đèn Lồng',
-    'Giữ đủ đèn sáng đến bình minh. Dùng đom đóm để thắp đèn hoặc châm dầu.\nWASD hoặc chuột phải để đi · Space để nhảy · Shift để lướt và xì hơi · E để nạp đèn · Q hoặc chuột trái để tỏa sáng · Esc/P để dừng.',
-    [['Bắt đầu', () => { total = 0; nightsWon = 0; campaignSeed = Date.now(); introduce(1) }],
-      ['Bảng xếp hạng', showLeaderboard], ['Cài đặt', () => openSettings(menu)]])
+    'Cùng Mây gom đom đóm và giữ đèn sáng đến bình minh qua ba hòn đảo.',
+    [['Bắt đầu', () => { practice = false; total = 0; nightsWon = 0; campaignSeed = Date.now(); introduce(1) }],
+      ['Chọn màn', chooseMap], ['Bảng xếp hạng', showLeaderboard], ['Cài đặt', () => openSettings(menu)]])
+  const key = action => keyLabel(bindings[action])
+  welcomeDetails([
+    ['Di chuyển', ['up', 'left', 'down', 'right'].map(key).join(' · ')],
+    ['Nhảy / Lướt', `${key('jump')} / ${key('dash')}`],
+    ['Nạp / Tỏa Sáng', `${key('interact')} / ${key('pulse')}`],
+  ])
 }
+function dawnClock(duration) {
+  return `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}`
+}
+
+function chooseMap() {
+  show('map-select', 'Chọn màn', 'Chơi thử một đảo. Bạn có thể bắt và ném rắn hoặc ếch. Điểm luyện tập không vào bảng xếp hạng.', [['Về menu', menu]])
+  const list = document.createElement('div')
+  list.className = 'map-list'
+  for (const selected of [1, 2, 3]) {
+    const map = maps[selected]
+    const card = document.createElement('button')
+    card.type = 'button'
+    card.className = 'map-card'
+    const name = document.createElement('strong')
+    name.textContent = `Màn ${selected} · ${map.name}`
+    const detail = document.createElement('span')
+    const count = map.lanterns.length
+    detail.textContent = `${Math.ceil(count * tuning.win_ratio)}/${count} đèn · ${dawnClock(tuning[`night${selected}_duration_s`])}`
+    card.append(name, detail)
+    card.addEventListener('click', () => {
+      audio.enable()
+      practice = true
+      campaignSeed = Date.now()
+      introduce(selected)
+    })
+    list.append(card)
+  }
+  content.append(list)
+}
+
 function play() {
   show('play', '', '')
   previousTime = undefined
@@ -436,7 +489,11 @@ function play() {
 function introduce(nextNight) {
   loadNight(nextNight)
   show('intro', `Đêm ${night} · ${maps[night].name}`, introductions[night - 1],
-    [['Vào đảo', play], ['Về menu', menu]])
+    [['Vào đảo', play], practice ? ['Đổi màn', chooseMap] : ['Về menu', menu]])
+  welcomeDetails([
+    ['Giữ đèn sáng', `${Math.ceil(game.lanterns.length * tuning.win_ratio)}/${game.lanterns.length} đèn`],
+    ['Đến bình minh', dawnClock(game.duration)],
+  ])
 }
 function openSettings(back) {
   show('settings', 'Cài đặt', '', [['Quay lại', back]])
@@ -515,6 +572,12 @@ async function showLeaderboard() {
 
 function finish(result) {
   audio.play(result)
+  if (practice) {
+    show('result', result === 'won' ? 'Đảo đã sáng trở lại!' : 'Đêm chưa qua',
+      `Luyện tập · ${maps[night].name} · ${game.score} điểm`,
+      [['Chơi lại Đêm', () => introduce(night)], ['Đổi màn', chooseMap], ['Về menu', menu]])
+    return
+  }
   if (result === 'won') {
     total += game.score
     nightsWon++
@@ -540,6 +603,10 @@ function mapKey(code) {
   const alternate = fallbackKeys[code]
   return alternate && bindings[alternate] === defaultKeys[alternate] ? alternate : undefined
 }
+function animalKey() {
+  return ['F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'B', 'V'].find(key => !mapKey(`Key${key}`))
+}
+
 function isHeld(action) {
   return [...keys].some(code => mapKey(code) === action)
 }
@@ -560,6 +627,11 @@ window.addEventListener('keydown', event => {
     return
   }
   const action = mapKey(event.code)
+  if (practice && screen === 'play' && event.code === `Key${animalKey()}`) {
+    event.preventDefault()
+    if (!event.repeat) actions.add('practice-animal')
+    return
+  }
   if (action === 'pause' && !event.repeat && ['play', 'pause'].includes(screen)) {
     event.preventDefault()
     if (screen === 'play') pause()
@@ -632,8 +704,8 @@ function handleEvents(events) {
     if (name === 'dash') dashPuffs.emit(game.player, game.simTick)
     if (name === 'pulse') {
       stompAt = game.simTick
-      const { x, y, z, facingX, facingZ } = game.player
-      pulseView.position.set(x, y + 0.10, z)
+      const { x, y, z, grounded, facingX, facingZ } = game.player
+      groundStrike = { x: x + facingX * 0.36, y, z: z + facingZ * 0.36, grounded }
       stompMarks.position.set(x, y + 0.105, z)
       stompMarks.rotation.y = Math.atan2(-facingX, -facingZ)
     }
@@ -667,7 +739,11 @@ function advance(elapsed, cosine, sine) {
     handleEvents(stepGame(game, {
       x, z, jump: actions.delete('jump'), interact: actions.delete('interact'),
       pulse: actions.delete('pulse'), dash: actions.delete('dash'),
-    }))
+    }, landscape.collision))
+    if (practice && game.state === 'playing') {
+      if (actions.delete('practice-animal')) practiceAnimals.interact(game, landscape)
+      practiceAnimals.step(game)
+    }
     accumulatedTime -= stepSeconds
   }
   audio.ambient()
@@ -719,15 +795,15 @@ function updatePlayer(time, elapsed, previousX, previousZ) {
     print.material.opacity = Math.max(0, fade) * 0.52
   }
 
-  const progress = (stompAge - stompImpact) / pulseLife
-  pulseView.visible = progress >= 0 && progress < 1
-  stompMarks.visible = pulseView.visible && progress < 0.65
-  if (pulseView.visible) {
-    pulseView.scale.setScalar(Math.max(0.27, progress * tuning.pulse_radius))
-    pulseView.material.opacity = (settings.reducedMotion ? 0.4 : 0.95) * (1 - progress)
+  if (groundStrike && stompAge >= stompImpact) {
+    landscape.strikeGround(groundStrike, game.simTick, settings.reducedMotion)
+    groundStrike = undefined
   }
+  landscape.updateDent(game.simTick)
+  const progress = (stompAge - stompImpact) / markLife
+  stompMarks.visible = progress >= 0 && progress < 1
   if (stompMarks.visible) {
-    hoofGlowMaterial.opacity = (settings.reducedMotion ? 0.45 : 0.88) * (1 - progress / 0.65)
+    hoofGlowMaterial.opacity = (settings.reducedMotion ? 0.42 : 0.72) * (1 - progress)
   }
 }
 
@@ -874,6 +950,9 @@ function updateHud() {
   const count = game.lanterns.filter(lantern => lantern.lit).length
   ambient.intensity = 0.15 + 0.55 * count / game.lanterns.length
   if (hud.hidden) return
+  const animalHint = byId('practice-animal-hint')
+  animalHint.hidden = !practice || screen !== 'play'
+  if (!animalHint.hidden) hudText('practice-animal-hint', practiceAnimals.hint(game, landscape, animalKey()))
   const { carried, flames, charmUntil, dashReady, dashUntil, pulseReady } = game.player
   const seconds = Math.ceil(timeLeft(game))
   hudText('flames', '🔥'.repeat(flames) + '○'.repeat(Math.max(0, tuning.flames - flames)))
@@ -972,9 +1051,25 @@ function frame(time) {
   updatePlayer(time, elapsed, oldX, oldZ)
   const height = Math.max(-3, position.y)
   cameraHeight = settings.reducedMotion ? height : THREE.MathUtils.lerp(cameraHeight, height, 0.16)
-  const cameraOffset = 14 * zoom
-  camera.position.set(position.x + cameraOffset * sine, cameraHeight + 9 * zoom, position.z + cameraOffset * cosine)
-  camera.lookAt(position.x - 2.5 * sine, cameraHeight + 1.45, position.z - 2.5 * cosine)
+  const preview = ['menu', 'intro', 'map-select'].includes(screen)
+  const narrow = window.innerWidth <= 760
+  const film = preview && !narrow ? -11 : 0
+  if (camera.filmOffset !== film) {
+    camera.filmOffset = film
+    camera.updateProjectionMatrix()
+  }
+  if (preview && !welcomeLight.parent) scene.add(welcomeLight)
+  if (!preview && welcomeLight.parent) welcomeLight.removeFromParent()
+  if (preview) {
+    const drift = settings.reducedMotion ? 0 : Math.sin(time / 4600) * 0.85
+    camera.position.set(position.x + 2.8 + drift, height + (narrow ? 4 : 3.2), position.z + 7.3)
+    camera.lookAt(position.x, height + (narrow ? -0.10 : 1.05), position.z)
+    welcomeLight.position.set(position.x - 1.4, height + 3.2, position.z + 3)
+  } else {
+    const cameraOffset = 14 * zoom
+    camera.position.set(position.x + cameraOffset * sine, cameraHeight + 9 * zoom, position.z + cameraOffset * cosine)
+    camera.lookAt(position.x - 2.5 * sine, cameraHeight + 1.45, position.z - 2.5 * cosine)
+  }
   camera.updateMatrixWorld()
   landscape.animate(time / 1000, camera, position, game.wind)
   updateActors(time)

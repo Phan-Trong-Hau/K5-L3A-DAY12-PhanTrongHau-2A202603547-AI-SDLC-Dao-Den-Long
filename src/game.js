@@ -139,7 +139,7 @@ function pickUp(game, emit) {
   }
 }
 
-export function stepGame(game, input) {
+export function stepGame(game, input, sceneryCollision) {
   if (game.state === 'won' || game.state === 'lost') return []
   game.tick++
   game.sounds.length = 0
@@ -159,7 +159,7 @@ export function stepGame(game, input) {
   }
   burnFuel(game, tuning, emit)
   updateWind(game)
-  if (!player.respawnAt) movePlayer(game, input, tuning, emit)
+  if (!player.respawnAt) movePlayer(game, input, tuning, emit, sceneryCollision)
   const falling = fallOrRespawn(game, tuning, emit)
   if (!falling) {
     pickUp(game, emit)

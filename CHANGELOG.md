@@ -1,5 +1,11 @@
 # Changelog
 
+## Phase 4 — Bản làm lại v1.0.1
+
+- Chạy soak bằng trình thông dịch Node.js để giảm tăng RSS do JIT, đo lại cả benchmark và soak. CI chặn nếu test, build hoặc ngưỡng soak không đạt.
+- Quay lại video demo có gameplay, kiểm thử và harness Git. Giữ tag Phase 4 và Release v1.0.0 làm mốc lịch sử.
+- Bản chơi web thêm menu mới, chọn màn luyện tập, va chạm cây đá, sân cỏ, dậm nứt đất và bắt/ném rắn hoặc ếch trong luyện tập.
+
 ## Phase 4 — Phát hành v1.0.0
 
 - Contract v1.3 thêm lệnh benchmark và soak. Vòng chơi, bản đồ và snapshot giữ tương thích với v1.2.

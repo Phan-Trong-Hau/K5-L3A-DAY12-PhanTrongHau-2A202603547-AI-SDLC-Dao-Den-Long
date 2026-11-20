@@ -93,3 +93,150 @@ input { accent-color: var(--gold); width: 100%; }
 
 .large-text #cooldowns { bottom: 3.6rem; }
 .large-text #hint { bottom: 9.1rem; }
+
+/* Use the live island as the cover art for the two entry screens. */
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) {
+  place-items: center start;
+  padding: clamp(1.25rem, 7vw, 6rem);
+  background:
+    linear-gradient(90deg, #0c1126 0%, #0c1126fc 22%, #0c1126de 38%, #0c112634 69%, #0c112600),
+    linear-gradient(0deg, #100f277a, transparent 55%);
+}
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) .card {
+  width: min(27rem, 100%);
+  max-height: calc(100dvh - 2.5rem);
+  padding: 0 0.25rem 0.6rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#welcome-emblem {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  margin-bottom: 0.8rem;
+  border: 1px solid #efc9805c;
+  border-radius: 0.95rem;
+  background: #efc98017;
+}
+#welcome-emblem span {
+  position: relative;
+  width: 1.13rem;
+  height: 1.15rem;
+  background: linear-gradient(90deg, #d66e36, #fed185 53%, #dd8040);
+  border: 1px solid #ffcd7a;
+  border-radius: 0.43rem;
+  box-shadow: 0 0 0.85rem #f2a44d6b;
+}
+#welcome-emblem span::before, #welcome-emblem span::after {
+  content: "";
+  position: absolute;
+  left: 17%;
+  width: 66%;
+  height: 0.14rem;
+  background: #efc980;
+}
+#welcome-emblem span::before { top: -0.19rem; }
+#welcome-emblem span::after { bottom: -0.19rem; }
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) h1 {
+  max-width: 11ch;
+  color: #fff1cf;
+  font-family: Georgia, serif;
+  font-size: clamp(3rem, 6.3vw, 5.3rem);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+#overlay[data-screen="intro"] h1 { max-width: 14ch; font-size: clamp(2.65rem, 5.3vw, 4.65rem); }
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) #screen-description {
+  max-width: 25rem;
+  color: #ded8e9;
+  margin: 1.05rem 0 1.1rem;
+}
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) #screen-actions {
+  gap: 0.55rem;
+  margin-top: 1.35rem;
+}
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) #screen-actions button {
+  min-height: 2.65rem;
+  padding: 0.55rem 0.85rem;
+  border-color: #8782a477;
+  background: #18192dd9;
+}
+#overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) #screen-actions button:first-child {
+  padding-inline: 1.35rem;
+  color: #281727;
+  border-color: #ffda9d;
+  background: linear-gradient(135deg, #ffd791, #eeb45d);
+  box-shadow: 0 0.35rem 1.3rem #e8a54826;
+}
+#screen-actions button:focus-visible { outline: 2px solid #fff0be; outline-offset: 3px; }
+.welcome-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  max-width: 24rem;
+  margin: 0;
+  padding-top: 0.88rem;
+  border-top: 1px solid #a298b751;
+}
+.welcome-details div { display: grid; gap: 0.05rem; }
+.welcome-details dt { color: #bfb8ce; }
+.welcome-details dd { color: #fff1cf; margin: 0; font-weight: 700; }
+@media (max-width: 760px) {
+  #overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) {
+    place-items: end center;
+    padding: 1rem;
+    background: linear-gradient(0deg, #0c1126 0%, #0c1126f7 41%, #0c112679 69%, #0c11261f 100%);
+  }
+  #overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) h1 { max-width: none; text-align: left; }
+}
+@media (max-height: 625px) {
+  #overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) { padding-block: 0.65rem; }
+  #welcome-emblem { margin-bottom: 0.5rem; }
+  #overlay:is([data-screen="menu"], [data-screen="intro"], [data-screen="map-select"]) h1 { font-size: clamp(2rem, 7.7vh, 4rem); }
+}
+
+#overlay[data-screen="menu"] #screen-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 24rem;
+}
+#overlay[data-screen="map-select"] h1 {
+  font-size: clamp(2.65rem, 5.3vw, 4.65rem);
+}
+.map-list { display: grid; gap: 0.5rem; max-width: 24rem; }
+.map-list .map-card {
+  display: grid;
+  gap: 0.13rem;
+  padding: 0.69rem 0.86rem;
+  text-align: left;
+  color: #fff1cf;
+  background: #18192de3;
+  border-color: #8782a477;
+  font-weight: 500;
+}
+.map-list .map-card:hover, .map-list .map-card:focus-visible {
+  background: #29233d;
+  border-color: #ffd791;
+}
+.map-card span { color: #ded8e9; }
+#overlay[data-screen="map-select"] #screen-actions button:first-child {
+  background: #18192dd9;
+  color: #fff1cf;
+  border-color: #8782a477;
+  box-shadow: none;
+}
+
+#practice-animal-hint {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  max-width: min(17rem, calc(100vw - 2rem));
+  color: #d9f5bd;
+}
+@media (max-width: 950px) { #practice-animal-hint { bottom: 3rem; } }
+@media (max-width: 700px) { #practice-animal-hint { bottom: 9.4rem; } }
